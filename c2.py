@@ -1,4 +1,3 @@
-# Imports
 from base64 import b64decode
 from datetime import datetime
 
@@ -93,6 +92,64 @@ def admin_teams_update():
     # Flash and redirect
     flash("Team updated")
     return redirect(url_for("admin_teams"))
+
+
+@app.route("/admin/services", methods=["GET"])
+def admin_services():
+    return render_template("services.html", services=Service.query.order_by(Service.ip).all())
+
+
+@app.route("/admin/services/add", methods=["POST"])
+def admin_services_add():
+    # Get form data
+    ip = request.form.get("ip")
+    name = request.form.get("name")
+    port = request.form.get("port")
+    ssh_port = request.form.get("ssh_port")
+
+    # Add to database
+    db.session.add(Service(ip, name, port, ssh_port))
+    db.session.commit()
+
+    # Flash and redirect
+    flash("Service added")
+    return redirect(url_for("admin_services"))
+
+
+@app.route("/admin/services/delete", methods=["GET"])
+def admin_services_delete():
+    # Get parameters
+    ip = request.args.get("ip")
+
+    # Add to database
+    Service.query.filter_by(ip=ip).delete()
+    db.session.commit()
+
+    # Flash and redirect
+    flash("Service deleted")
+    return redirect(url_for("admin_services"))
+
+
+@app.route("/admin/services/update", methods=["POST"])
+def admin_services_update():
+    # Get form data
+    old_ip = request.form.get("old_ip")
+    ip = request.form.get("ip")
+    name = request.form.get("name")
+    port = request.form.get("port")
+    ssh_port = request.form.get("ssh_port")
+
+    # Add to database
+    service = Service.query.get(old_ip)
+    service.ip = ip
+    service.name = name
+    service.port = port
+    service.ssh_port = ssh_port
+    db.session.commit()
+
+    # Flash and redirect
+    flash("Service updated")
+    return redirect(url_for("admin_services"))
 
 
 # Exfil route

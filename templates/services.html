@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% block title %}Services{% endblock %}
+{% block content %}
+    <h2>Services</h2>
+    <table>
+        <tr>
+            <th>IP</th>
+            <th>Name</th>
+            <th>Port</th>
+            <th>SSH Port</th>
+            <th>Update</th>
+            <th>Delete</th>
+        </tr>
+        {% for service in services %}
+            <tr>
+                <form action="/admin/services/update" method="post">
+                    <input type="hidden" name="old_ip" value={{ service.ip }}>
+                    <td><input type="number" name="ip" value={{ service.ip }} required></td>
+                    <td><input type="text" name="name" value="{{ service.name }}" required></td>
+                    <td><input type="number" name="port" value={{ service.port }} required></td>
+                    <td><input type="number" name="ssh_port" value={{ service.ssh_port }} required></td>
+                    <td><input type="submit" value="Save"></td>
+                </form>
+                <td><a href="/admin/services/delete?ip={{ service.ip }}">X</a></td>
+            </tr>
+        {% endfor %}
+    </table>
+    <form action="/admin/services/add" method="post">
+        IP: <input type="number" name="ip" required><br>
+        Name: <input type="text" name="name" required><br>
+        Port: <input type="number" name="port" required><br>
+        SSH Port: <input type="number" name="ssh_port" value=22 required><br>
+        <input type="submit" value="Add">
+    </form>
+{% endblock %}

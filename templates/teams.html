@@ -13,17 +13,17 @@
                 <tr>
                     <form action="/admin/teams/update" method="post">
                         <input type="hidden" name="old_num" value={{team.num}}>
-                        <td><input type="number" name="num" value={{team.num}}></td>
-                        <td><input type="text" name="name" value={{team.name}}></td>
+                        <td><input type="number" name="num" value={{ team.num }} required></td>
+                        <td><input type="text" name="name" value="{{ team.name }}" required></td>
                         <td><input type="submit" value="Save"></td>
                     </form>
-                    <td><a href="/admin/teams/delete?num={{team.num}}">X</td>
+                    <td><a href="/admin/teams/delete?num={{ team.num }}">X</a></td>
                 </tr>
             {% endfor %}
     </table>
     <form action="/admin/teams/add" method="post">
-        Number: <input type="number" name="num"><br>
-        Name: <input type="text" name="name"><br>
+        Number: <input type="number" name="num" required><br>
+        Name: <input type="text" name="name" required><br>
         <input type="submit" value="Add">
     </form>
 {% endblock %}
