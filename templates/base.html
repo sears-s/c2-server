@@ -2,19 +2,24 @@
 <html lang="en">
 <head>
     {% block head %}
-    <title>{% block title %}{% endblock %} - Admin</title>
+        <title>{% block title %}{% endblock %} - Admin</title>
     {% endblock %}
 </head>
 <body>
-    {% with messages = get_flashed_messages() %}
-        {% if messages %}
-            <ul>
-                {% for message in messages %}
-                    <li>{{ message }}</li>
-                {% endfor %}
-            </ul>
-        {% endif %}
-    {% endwith %}
-    {% block content %}{% endblock %}
+{% with messages = get_flashed_messages() %}
+    {% if messages %}
+        <ul>
+            {% for message in messages %}
+                <li>{{ message }}</li>
+            {% endfor %}
+        </ul>
+    {% endif %}
+{% endwith %}
+<div class="sidenav">
+    <a href="/admin/settings">Settings</a>
+    <a href="/admin/teams">Teams</a>
+    <a href="/admin/services">Services</a>
+</div>
+{% block content %}{% endblock %}
 </body>
 </html>

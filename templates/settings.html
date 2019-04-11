@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+    <h2>Settings</h2>
+    <table>
+        <tr>
+            <th>Name</th>
+            <th>Description</th>
+            <th>Value</th>
+            <th>Update</th>
+        </tr>
+        {% for setting in settings %}
+            <tr>
+                <form action="/admin/settings/update" method="post">
+                    <input type="hidden" name="name" value={{ setting.name }}>
+                    <td>{{ setting.name }}</td>
+                    <td>{{ setting.description }}</td>
+                    <td><input type="text" name="value" value="{{ setting.value }}" required></td>
+                    <td><input type="submit" value="Save"></td>
+                </form>
+            </tr>
+        {% endfor %}
+    </table>
+{% endblock %}

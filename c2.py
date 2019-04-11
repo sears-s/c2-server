@@ -13,6 +13,7 @@ LOG_FILE = "c2.log"
 
 # Default settings
 DEFAULT_SUBNET = "172.16.T.B"
+DEFAULT_WHITELISTED_IPS = "127.0.0.1"
 
 # Create Flask and database
 app = Flask(__name__, template_folder=TEMPLATE_DIR)
@@ -30,6 +31,10 @@ def main():
         db.session.add(Setting("subnet", DEFAULT_SUBNET,
                                "Subnet teams are on, T should replace team number and B should replace box IP"))
         db.session.commit()
+    if not Setting.query.get("whitelisted_ips"):
+        db.session.add(Setting("whitelisted_ips", DEFAULT_WHITELISTED_IPS,
+                               "IPs, separated by commas and no spaces, that are allowed to access admin site"))
+        db.session.commit()
 
     # Start Flask
     app.run(port=PORT, debug=DEBUG)
@@ -38,8 +43,31 @@ def main():
 # Protect the admin routes
 @app.before_request
 def check_admin():
-    if request.path.startswith("/admin") and not request.remote_addr == "127.0.0.1":
+    settings = Setting.query.get("whitelisted_ips")
+    ips = settings.value.split(",")
+    if request.path.startswith("/admin") and request.remote_addr not in ips:
         return ""
+
+
+@app.route("/admin/settings", methods=["GET"])
+def admin_settings():
+    return render_template("settings.html", settings=Setting.query.all())
+
+
+@app.route("/admin/settings/update", methods=["POST"])
+def admin_settings_update():
+    # Get form data
+    name = request.form.get("name")
+    value = request.form.get("value")
+
+    # Add to database
+    setting = Setting.query.get(name)
+    setting.value = value
+    db.session.commit()
+
+    # Flash and redirect
+    flash("Setting updated")
+    return redirect(url_for("admin_settings"))
 
 
 @app.route("/admin/teams", methods=["GET"])
