@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% block title %}Teams{% endblock %}
+{% block content %}
+    <h2>Teams</h2>
+    <table>
+        <tr>
+            <th>Number</th>
+            <th>Name</th>
+            <th>Update</th>
+            <th>Delete</th>
+        </tr>
+            {% for team in teams %}
+                <tr>
+                    <form action="/admin/teams/update" method="post">
+                        <input type="hidden" name="old_num" value={{team.num}}>
+                        <td><input type="number" name="num" value={{team.num}}></td>
+                        <td><input type="text" name="name" value={{team.name}}></td>
+                        <td><input type="submit" value="Save"></td>
+                    </form>
+                    <td><a href="/admin/teams/delete?num={{team.num}}">X</td>
+                </tr>
+            {% endfor %}
+    </table>
+    <form action="/admin/teams/add" method="post">
+        Number: <input type="number" name="num"><br>
+        Name: <input type="text" name="name"><br>
+        <input type="submit" value="Add">
+    </form>
+{% endblock %}
