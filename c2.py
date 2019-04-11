@@ -1,6 +1,7 @@
 # Imports
 from base64 import b64decode
 from datetime import datetime
+
 from flask import Flask, request, render_template, flash, redirect, url_for
 from flask_sqlalchemy import SQLAlchemy
 
@@ -58,7 +59,7 @@ def admin_teams_add():
     db.session.commit()
 
     # Flash and redirect
-    flash(f"Team added")
+    flash("Team added")
     return redirect(url_for("admin_teams"))
 
 
@@ -72,7 +73,7 @@ def admin_teams_delete():
     db.session.commit()
 
     # Flash and redirect
-    flash(f"Team deleted")
+    flash("Team deleted")
     return redirect(url_for("admin_teams"))
 
 
@@ -90,7 +91,7 @@ def admin_teams_update():
     db.session.commit()
 
     # Flash and redirect
-    flash(f"Team updated")
+    flash("Team updated")
     return redirect(url_for("admin_teams"))
 
 
@@ -281,8 +282,7 @@ class MSFExploit(db.Model):
     options = db.Column(db.Text, nullable=False)
     payload = db.Column(db.Text, nullable=False)
 
-    def __init__(self, id, exploit, options, payload):
-        self.id = id
+    def __init__(self, exploit, options, payload):
         self.exploit = exploit
         self.options = options
         self.payload = payload
