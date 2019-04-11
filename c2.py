@@ -60,7 +60,7 @@ def admin_settings_update():
     name = request.form.get("name")
     value = request.form.get("value")
 
-    # Add to database
+    # Update in database
     setting = Setting.query.get(name)
     setting.value = value
     db.session.commit()
@@ -83,6 +83,8 @@ def admin_teams_add():
 
     # Add to database
     db.session.add(Team(num, name))
+    for service in Service.query.all():
+        db.session.add(Box(num, service.ip, False, None, False, None))
     db.session.commit()
 
     # Flash and redirect
@@ -95,8 +97,13 @@ def admin_teams_delete():
     # Get parameters
     num = request.args.get("num")
 
-    # Add to database
-    Team.query.filter_by(num=num).delete()
+    # Delete from database
+    # Box.query.filter_by(team=num).delete()
+    # Flag.query.filter_by(team=num).delete()
+    # ExfilData.query.filter_by(team=num).delete()
+    # Team.query.filter_by(num=num).delete()
+    team = Team.query.get(num)
+    db.session.delete(team)
     db.session.commit()
 
     # Flash and redirect
@@ -111,10 +118,17 @@ def admin_teams_update():
     num = request.form.get("num")
     name = request.form.get("name")
 
-    # Add to database
+    # Update in database
     team = Team.query.get(old_num)
     team.num = num
     team.name = name
+    # if old_num != num:
+    #     for box in Box.query.filter_by(team=old_num):
+    #         box.team = num
+    #     for flag in Flag.query.filter_by(team=old_num):
+    #         flag.team = num
+    #     for exfil_data in ExfilData.query.filter_by(team=old_num):
+    #         exfil_data.team = num
     db.session.commit()
 
     # Flash and redirect
@@ -137,6 +151,8 @@ def admin_services_add():
 
     # Add to database
     db.session.add(Service(ip, name, port, ssh_port))
+    for team in Team.query.all():
+        db.session.add(Box(ip, team.num, False, None, False, None))
     db.session.commit()
 
     # Flash and redirect
@@ -149,8 +165,15 @@ def admin_services_delete():
     # Get parameters
     ip = request.args.get("ip")
 
-    # Add to database
-    Service.query.filter_by(ip=ip).delete()
+    # Delete from database
+    # Box.query.filter_by(service=ip).delete()
+    # Flag.query.filter_by(service=ip).delete()
+    # ExfilData.query.filter_by(service=ip).delete()
+    # MSFExploit.query.filter_by(service=ip).delete()
+    # FlagRetrieval.query.filter_by(service=ip).delete()
+    # Service.query.filter_by(ip=ip).delete()
+    service = Service.query.get(ip)
+    db.session.delete(service)
     db.session.commit()
 
     # Flash and redirect
@@ -167,17 +190,38 @@ def admin_services_update():
     port = request.form.get("port")
     ssh_port = request.form.get("ssh_port")
 
-    # Add to database
+    # Update in database
     service = Service.query.get(old_ip)
     service.ip = ip
     service.name = name
     service.port = port
     service.ssh_port = ssh_port
+    # if old_ip != ip:
+    #     for box in Box.query.filter_by(service=old_ip):
+    #         box.service = ip
+    #     for flag in Flag.query.filter_by(service=old_ip):
+    #         flag.service = ip
+    #     for exfil_data in ExfilData.query.filter_by(service=old_ip):
+    #         exfil_data.service = ip
+    #     for msf_exploit in MSFExploit.query.filter_by(service=old_ip):
+    #         msf_exploit.service = ip
+    #     for flag_retrieval in FlagRetrieval.query.filter_by(service=old_ip):
+    #         flag_retrieval.service = ip
     db.session.commit()
 
     # Flash and redirect
     flash("Service updated")
     return redirect(url_for("admin_services"))
+
+
+@app.route("/admin/boxes", methods=["GET"])
+def admin_boxes():
+    return render_template("boxes.html", boxes=Box.query.order_by(Box.team_num, Box.service_ip).all())
+
+
+# @app.route("/admin/flags", methods=["GET"])
+# def admin_flags():
+#     return render_template("flags.html", flags=Flag.query.order_by(Flag.found.desc()).all())
 
 
 # Exfil route
@@ -315,24 +359,28 @@ class Service(db.Model):
 
 
 class Box(db.Model):
-    team = db.Column(db.Integer, db.ForeignKey("team.num"), primary_key=True)
-    service = db.Column(db.Integer, db.ForeignKey(
-        "service.ip"), primary_key=True)
+    team_num = db.Column(db.Integer, db.ForeignKey("team.num"), primary_key=True)
+    team = db.relationship(Team, backref=db.backref("boxes", cascade="all, delete-orphan"))
+    service_ip = db.Column(db.Integer, db.ForeignKey("service.ip"), primary_key=True)
+    service = db.relationship(Service, backref=db.backref("boxes", cascade="all, delete-orphan"))
     pwned = db.Column(db.Boolean, nullable=False)
     last_update = db.Column(db.DateTime, nullable=True)
+    flags = db.Column(db.Boolean, nullable=False)
+    last_flag = db.Column(db.DateTime, nullable=True)
 
-    def __init__(self, team, service, pwned, last_update):
-        self.team = team
-        self.service = service
+    def __init__(self, team_num, service_ip, pwned, last_update, flags, last_flag):
+        self.team_num = team_num
+        self.service_ip = service_ip
         self.pwned = pwned
         self.last_update = last_update
+        self.flags = flags
+        self.last_flag = last_flag
 
 
 class Flag(db.Model):
     flag = db.Column(db.Text, primary_key=True)
     team = db.Column(db.Integer, db.ForeignKey("team.num"), nullable=False)
-    service = db.Column(db.Integer, db.ForeignKey(
-        "service.ip"), nullable=False)
+    service = db.Column(db.Integer, db.ForeignKey("service.ip"), nullable=False)
     found = db.Column(db.DateTime, nullable=False)
     submitted = db.Column(db.DateTime, nullable=True)
 
@@ -347,8 +395,7 @@ class Flag(db.Model):
 class ExfilData(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     team = db.Column(db.Integer, db.ForeignKey("team.num"), nullable=False)
-    service = db.Column(db.Integer, db.ForeignKey(
-        "service.ip"), nullable=False)
+    service = db.Column(db.Integer, db.ForeignKey("service.ip"), nullable=False)
     filename = db.Column(db.Text, nullable=False)
     data = db.Column(db.Text, nullable=False)
     found = db.Column(db.DateTime, nullable=False)
@@ -363,11 +410,13 @@ class ExfilData(db.Model):
 
 class MSFExploit(db.Model):
     id = db.Column(db.Integer, primary_key=True)
+    service = db.Column(db.Integer, db.ForeignKey("service.ip"), nullable=False)
     exploit = db.Column(db.Text, nullable=False)
     options = db.Column(db.Text, nullable=False)
     payload = db.Column(db.Text, nullable=False)
 
-    def __init__(self, exploit, options, payload):
+    def __init__(self, service, exploit, options, payload):
+        self.service = service
         self.exploit = exploit
         self.options = options
         self.payload = payload
@@ -375,8 +424,7 @@ class MSFExploit(db.Model):
 
 class FlagRetrieval(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    service = db.Column(db.Integer, db.ForeignKey(
-        "service.ip"), nullable=False)
+    service = db.Column(db.Integer, db.ForeignKey("service.ip"), nullable=False)
     root_shell = db.Column(db.Boolean, nullable=False)
     command = db.Column(db.Text, nullable=False)
 

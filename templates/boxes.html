@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% block title %}Boxes{% endblock %}
+{% block content %}
+    <h2>Boxes</h2>
+    <table>
+        <tr>
+            <th>Team</th>
+            <th>Service</th>
+            <th>Pwned</th>
+            <th>Last Update</th>
+            <th>Getting Flags</th>
+            <th>Last Flag</th>
+        </tr>
+        {% for box in boxes %}
+            <tr>
+                <td>{{ box.team.name }}</td>
+                <td>{{ box.service.name }}</td>
+                <td>{{ box.pwned }}</td>
+                <td>{{ box.last_update }}</td>
+                <td>{{ box.flags }}</td>
+                <td>{{ box.last_flag }}</td>
+            </tr>
+        {% endfor %}
+    </table>
+{% endblock %}
