@@ -1,18 +1,22 @@
 {% extends "base.html" %}
-{% block title %}Boxes{% endblock %}
+{% set active_page = "Boxes" %}
 {% block content %}
-    <h2>Boxes</h2>
-    <table>
+    <table class="table table-hover table-bordered">
+        <thead class="thead-light">
         <tr>
-            <th>Team</th>
-            <th>Service</th>
-            <th>Pwned</th>
-            <th>Last Update</th>
-            <th>Getting Flags</th>
-            <th>Last Flag</th>
+            <th scope="col">IP</th>
+            <th scope="col">Team</th>
+            <th scope="col">Service</th>
+            <th scope="col">Pwned</th>
+            <th scope="col">Last Update</th>
+            <th scope="col">Getting Flags</th>
+            <th scope="col">Last Flag</th>
         </tr>
+        </thead>
+        <tbody>
         {% for box in boxes %}
             <tr>
+                <th scope="row">{{ subnet }}{{ box.team_num }}.{{ box.service_ip }}</th>
                 <td>{{ box.team.name }}</td>
                 <td>{{ box.service.name }}</td>
                 <td>{{ box.pwned }}</td>
@@ -21,5 +25,6 @@
                 <td>{{ box.last_flag }}</td>
             </tr>
         {% endfor %}
+        </tbody>
     </table>
 {% endblock %}

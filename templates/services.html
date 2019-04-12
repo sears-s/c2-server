@@ -1,35 +1,66 @@
 {% extends "base.html" %}
-{% block title %}Services{% endblock %}
+{% set active_page = "Services" %}
 {% block content %}
-    <h2>Services</h2>
-    <table>
+    <table class="table table-hover table-bordered">
+        <thead class="thead-light">
         <tr>
-            <th>IP</th>
-            <th>Name</th>
-            <th>Port</th>
-            <th>SSH Port</th>
-            <th>Update</th>
-            <th>Delete</th>
+            <th scope="col">IP</th>
+            <th scope="col">Name</th>
+            <th scope="col">Port</th>
+            <th scope="col">SSH Port</th>
+            <th scope="col">Actions</th>
         </tr>
+        </thead>
+        <tbody>
         {% for service in services %}
             <tr>
                 <form action="/admin/services/update" method="post">
-                    <input type="hidden" name="old_ip" value={{ service.ip }}>
-                    <td><input type="number" name="ip" value={{ service.ip }} required></td>
-                    <td><input type="text" name="name" value="{{ service.name }}" required></td>
-                    <td><input type="number" name="port" value={{ service.port }} required></td>
-                    <td><input type="number" name="ssh_port" value={{ service.ssh_port }} required></td>
-                    <td><input type="submit" value="Save"></td>
+                    <input type="hidden" name="ip" value={{ service.ip }}>
+                    <th scope="row">{{ service.ip }}</th>
+                    <td><input class="form-control" type="text" name="name" value="{{ service.name }}" required></td>
+                    <td><input class="form-control" type="number" name="port" value={{ service.port }} required></td>
+                    <td><input class="form-control" type="number" name="ssh_port" value={{ service.ssh_port }} required>
+                    </td>
+                    <td>
+                        <div class="btn-group" role="group">
+                            <input class="btn btn-primary" type="submit" value="Update">
+                            <a class="btn btn-danger" href="/admin/services/delete?ip={{ service.ip }}">Delete</a>
+                        </div>
+                    </td>
                 </form>
-                <td><a href="/admin/services/delete?ip={{ service.ip }}">X</a></td>
             </tr>
         {% endfor %}
+        </tbody>
     </table>
     <form action="/admin/services/add" method="post">
-        IP: <input type="number" name="ip" required><br>
-        Name: <input type="text" name="name" required><br>
-        Port: <input type="number" name="port" required><br>
-        SSH Port: <input type="number" name="ssh_port" value=22 required><br>
-        <input type="submit" value="Add">
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <span class="input-group-text" id="basic-addon1">IP</span>
+            </div>
+            <input type="number" class="form-control" placeholder="IP" aria-label="IP"
+                   aria-describedby="basic-addon1" name="ip" required>
+        </div>
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <span class="input-group-text" id="basic-addon1">Name</span>
+            </div>
+            <input type="text" class="form-control" placeholder="Name" aria-label="Name"
+                   aria-describedby="basic-addon1" name="name" required>
+        </div>
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <span class="input-group-text" id="basic-addon1">Port</span>
+            </div>
+            <input type="number" class="form-control" placeholder="Port" aria-label="Port"
+                   aria-describedby="basic-addon1" name="port" required>
+        </div>
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <span class="input-group-text" id="basic-addon1">SSH Port</span>
+            </div>
+            <input type="number" class="form-control" placeholder="SSH Port" aria-label="SSH Port"
+                   aria-describedby="basic-addon1" name="ssh_port" value=22 required>
+        </div>
+        <input class="btn btn-primary" type="submit" value="Add">
     </form>
 {% endblock %}

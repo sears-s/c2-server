@@ -2,10 +2,11 @@ from base64 import b64decode
 from datetime import datetime
 
 from flask import Flask, request, render_template, flash, redirect, url_for
+from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
 
 # Constants
-PORT = 80
+PORT = 69
 DEBUG = True
 TEMPLATE_DIR = "templates"
 DB_FILE = "c2.db"
@@ -20,6 +21,7 @@ app = Flask(__name__, template_folder=TEMPLATE_DIR)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + DB_FILE
 app.secret_key = "poop"
 db = SQLAlchemy(app)
+Bootstrap(app)
 
 
 def main():
@@ -47,6 +49,13 @@ def check_admin():
     ips = settings.value.split(",")
     if request.path.startswith("/admin") and request.remote_addr not in ips:
         return ""
+
+
+@app.route("/admin", methods=["GET"])
+def admin_home():
+    return render_template("home.html", total_boxes=Box.query.count(),
+                           pwned_boxes=Box.query.filter_by(pwned=True).count(),
+                           flag_boxes=Box.query.filter_by(flags=True).count())
 
 
 @app.route("/admin/settings", methods=["GET"])
@@ -98,10 +107,6 @@ def admin_teams_delete():
     num = request.args.get("num")
 
     # Delete from database
-    # Box.query.filter_by(team=num).delete()
-    # Flag.query.filter_by(team=num).delete()
-    # ExfilData.query.filter_by(team=num).delete()
-    # Team.query.filter_by(num=num).delete()
     team = Team.query.get(num)
     db.session.delete(team)
     db.session.commit()
@@ -114,21 +119,12 @@ def admin_teams_delete():
 @app.route("/admin/teams/update", methods=["POST"])
 def admin_teams_update():
     # Get form data
-    old_num = request.form.get("old_num")
     num = request.form.get("num")
     name = request.form.get("name")
 
     # Update in database
-    team = Team.query.get(old_num)
-    team.num = num
+    team = Team.query.get(num)
     team.name = name
-    # if old_num != num:
-    #     for box in Box.query.filter_by(team=old_num):
-    #         box.team = num
-    #     for flag in Flag.query.filter_by(team=old_num):
-    #         flag.team = num
-    #     for exfil_data in ExfilData.query.filter_by(team=old_num):
-    #         exfil_data.team = num
     db.session.commit()
 
     # Flash and redirect
@@ -166,12 +162,6 @@ def admin_services_delete():
     ip = request.args.get("ip")
 
     # Delete from database
-    # Box.query.filter_by(service=ip).delete()
-    # Flag.query.filter_by(service=ip).delete()
-    # ExfilData.query.filter_by(service=ip).delete()
-    # MSFExploit.query.filter_by(service=ip).delete()
-    # FlagRetrieval.query.filter_by(service=ip).delete()
-    # Service.query.filter_by(ip=ip).delete()
     service = Service.query.get(ip)
     db.session.delete(service)
     db.session.commit()
@@ -184,29 +174,16 @@ def admin_services_delete():
 @app.route("/admin/services/update", methods=["POST"])
 def admin_services_update():
     # Get form data
-    old_ip = request.form.get("old_ip")
     ip = request.form.get("ip")
     name = request.form.get("name")
     port = request.form.get("port")
     ssh_port = request.form.get("ssh_port")
 
     # Update in database
-    service = Service.query.get(old_ip)
-    service.ip = ip
+    service = Service.query.get(ip)
     service.name = name
     service.port = port
     service.ssh_port = ssh_port
-    # if old_ip != ip:
-    #     for box in Box.query.filter_by(service=old_ip):
-    #         box.service = ip
-    #     for flag in Flag.query.filter_by(service=old_ip):
-    #         flag.service = ip
-    #     for exfil_data in ExfilData.query.filter_by(service=old_ip):
-    #         exfil_data.service = ip
-    #     for msf_exploit in MSFExploit.query.filter_by(service=old_ip):
-    #         msf_exploit.service = ip
-    #     for flag_retrieval in FlagRetrieval.query.filter_by(service=old_ip):
-    #         flag_retrieval.service = ip
     db.session.commit()
 
     # Flash and redirect
@@ -216,7 +193,9 @@ def admin_services_update():
 
 @app.route("/admin/boxes", methods=["GET"])
 def admin_boxes():
-    return render_template("boxes.html", boxes=Box.query.order_by(Box.team_num, Box.service_ip).all())
+    parts = Setting.query.get("subnet").value.split(".")
+    subnet = f"{parts[0]}.{parts[1]}."
+    return render_template("boxes.html", boxes=Box.query.order_by(Box.team_num, Box.service_ip).all(), subnet=subnet)
 
 
 # @app.route("/admin/flags", methods=["GET"])

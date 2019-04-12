@@ -1,26 +1,72 @@
-<!DOCTYPE html>
+{% set navigation_bar = [
+    ("/admin/settings", "Settings"),
+    ("/admin/teams", "Teams"),
+    ("/admin/services", 'Services'),
+    ("/admin/boxes", "Boxes")
+] -%}
+{% set active_page = active_page|default('Home') -%}
+
+<!doctype html>
 <html lang="en">
 <head>
     {% block head %}
-        <title>{% block title %}{% endblock %} - Admin</title>
+        <!-- Required meta tags -->
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+
+        {% block styles %}
+            <!-- Bootstrap CSS -->
+            {{ bootstrap.load_css() }}
+        {% endblock %}
+
+        <title>{{ active_page }} - Admin</title>
     {% endblock %}
 </head>
 <body>
-{% with messages = get_flashed_messages() %}
-    {% if messages %}
-        <ul>
-            {% for message in messages %}
-                <li>{{ message }}</li>
+<nav class="navbar navbar-expand-lg navbar-dark bg-dark">
+    <a class="navbar-brand" href="/admin">Admin</a>
+    <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarSupportedContent"
+            aria-controls="navbarSupportedContent" aria-expanded="false" aria-label="Toggle navigation">
+        <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarSupportedContent">
+        <ul class="navbar-nav mr-auto">
+            {% for path, name in navigation_bar %}
+                <li class="nav-item{% if name == active_page %} active{% endif %}">
+                    <a href="{{ path }}" class="nav-link">
+                        {{ name }}{% if name == active_page %} <span class="sr-only">(current)</span>{% endif %}
+                    </a>
+                </li>
             {% endfor %}
         </ul>
-    {% endif %}
-{% endwith %}
-<div class="sidenav">
-    <a href="/admin/settings">Settings</a>
-    <a href="/admin/teams">Teams</a>
-    <a href="/admin/services">Services</a>
-    <a href="/admin/boxes">Boxes</a>
+    </div>
+</nav>
+
+<!-- Your page contont -->
+<div id="card">
+    <h3 class="card-header">{{ active_page }}</h3>
+    <div class="card-body">
+        {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                <div class="alert alert-primary alert-dismissible fade show" role="alert">
+                    <ul>
+                        {% for message in messages %}
+                            <li>{{ message }}</li>
+                        {% endfor %}
+                    </ul>
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            {% endif %}
+        {% endwith %}
+        {% block content %}{% endblock %}
+    </div>
 </div>
-{% block content %}{% endblock %}
+
+{% block scripts %}
+    <!-- Optional JavaScript -->
+    {{ bootstrap.load_js() }}
+{% endblock %}
 </body>
 </html>
