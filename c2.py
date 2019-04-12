@@ -2,7 +2,7 @@ from base64 import b64decode
 from datetime import datetime
 
 from flask import Flask, request, render_template, flash, redirect, url_for
-from flask_bootstrap import Bootstrap  # bootstrap_flask
+from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
 
 # Constants
