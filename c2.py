@@ -2,11 +2,11 @@ from base64 import b64decode
 from datetime import datetime
 
 from flask import Flask, request, render_template, flash, redirect, url_for
-from flask_bootstrap import Bootstrap
+from flask_bootstrap import Bootstrap  # bootstrap_flask
 from flask_sqlalchemy import SQLAlchemy
 
 # Constants
-PORT = 69
+PORT = 80
 DEBUG = True
 TEMPLATE_DIR = "templates"
 DB_FILE = "c2.db"
@@ -55,7 +55,9 @@ def check_admin():
 def admin_home():
     return render_template("home.html", total_boxes=Box.query.count(),
                            pwned_boxes=Box.query.filter_by(pwned=True).count(),
-                           flag_boxes=Box.query.filter_by(flags=True).count())
+                           flag_boxes=Box.query.filter_by(flags=True).count(),
+                           flags_found=Flag.query.count(),
+                           flags_submitted=Flag.query.filter(Flag.submitted.isnot(None)).count())
 
 
 @app.route("/admin/settings", methods=["GET"])
@@ -193,14 +195,90 @@ def admin_services_update():
 
 @app.route("/admin/boxes", methods=["GET"])
 def admin_boxes():
-    parts = Setting.query.get("subnet").value.split(".")
-    subnet = f"{parts[0]}.{parts[1]}."
-    return render_template("boxes.html", boxes=Box.query.order_by(Box.team_num, Box.service_ip).all(), subnet=subnet)
+    return render_template("boxes.html", boxes=Box.query.order_by(Box.team_num, Box.service_ip).all(),
+                           subnet=half_subnet())
 
 
-# @app.route("/admin/flags", methods=["GET"])
-# def admin_flags():
-#     return render_template("flags.html", flags=Flag.query.order_by(Flag.found.desc()).all())
+@app.route("/admin/flags", methods=["GET"])
+def admin_flags():
+    return render_template("flags.html", flags=Flag.query.order_by(Flag.found.desc()).all(), subnet=half_subnet())
+
+
+@app.route("/admin/exfils", methods=["GET"])
+def admin_exfils():
+    return render_template("exfils.html", exfils=ExfilData.query.order_by(ExfilData.found.desc()).all(),
+                           subnet=half_subnet())
+
+
+@app.route("/admin/exfils/view", methods=["GET"])
+def admin_exfils_view():
+    # Get parameters
+    id = request.args.get("id")
+
+    # Get from database
+    exfil_data = ExfilData.query.get(id)
+
+    # Return the data
+    return exfil_data.data
+
+
+@app.route("/admin/msfs", methods=["GET"])
+def admin_msfs():
+    return render_template("msfs.html", msfs=MSFExploit.query.all(), services=Service.query.order_by(Service.ip).all())
+
+
+@app.route("/admin/msfs/add", methods=["POST"])
+def admin_msfs_add():
+    # Get form data
+    service_ip = request.form.get("service_ip")
+    exploit = request.form.get("exploit")
+    options = request.form.get("options")
+    payload = request.form.get("payload")
+
+    # Add to database
+    db.session.add(MSFExploit(service_ip, exploit, options, payload, None))
+    db.session.commit()
+
+    # Flash and redirect
+    flash("MSF exploit added")
+    return redirect(url_for("admin_msfs"))
+
+
+@app.route("/admin/msfs/delete", methods=["GET"])
+def admin_msfs_delete():
+    # Get parameters
+    id = request.args.get("id")
+
+    # Delete from database
+    msf_exploit = MSFExploit.query.get(id)
+    db.session.delete(msf_exploit)
+    db.session.commit()
+
+    # Flash and redirect
+    flash("MSF exploit deleted")
+    return redirect(url_for("admin_msfs"))
+
+
+@app.route("/admin/msfs/update", methods=["POST"])
+def admin_msfs_update():
+    # Get form data
+    id = request.form.get("id")
+    service_ip = request.form.get("service_ip")
+    exploit = request.form.get("exploit")
+    options = request.form.get("options")
+    payload = request.form.get("payload")
+
+    # Update in database
+    msf_exploit = MSFExploit.query.get(id)
+    msf_exploit.service_ip = service_ip
+    msf_exploit.exploit = exploit
+    msf_exploit.options = options
+    msf_exploit.payload = payload
+    db.session.commit()
+
+    # Flash and redirect
+    flash("MSF exploit updated")
+    return redirect(url_for("admin_msfs"))
 
 
 # Exfil route
@@ -290,8 +368,9 @@ def catch_all(e):
     return ""
 
 
-def get_ip(subnet, team, service):
-    return subnet.replace("T", team.num).replace("B", service.ip)
+def half_subnet():
+    parts = Setting.query.get("subnet").value.split(".")
+    return f"{parts[0]}.{parts[1]}."
 
 
 def log(info):
@@ -358,30 +437,34 @@ class Box(db.Model):
 
 class Flag(db.Model):
     flag = db.Column(db.Text, primary_key=True)
-    team = db.Column(db.Integer, db.ForeignKey("team.num"), nullable=False)
-    service = db.Column(db.Integer, db.ForeignKey("service.ip"), nullable=False)
+    team_num = db.Column(db.Integer, db.ForeignKey("team.num"), nullable=False)
+    team = db.relationship(Team, backref=db.backref("flags", cascade="all, delete-orphan"))
+    service_ip = db.Column(db.Integer, db.ForeignKey("service.ip"), nullable=False)
+    service = db.relationship(Service, backref=db.backref("flags", cascade="all, delete-orphan"))
     found = db.Column(db.DateTime, nullable=False)
     submitted = db.Column(db.DateTime, nullable=True)
 
-    def __init__(self, flag, team, service, found, submitted):
+    def __init__(self, flag, team_num, service_ip, found, submitted):
         self.flag = flag
-        self.team = team
-        self.service = service
+        self.team_num = team_num
+        self.service_ip = service_ip
         self.found = found
         self.submitted = submitted
 
 
 class ExfilData(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    team = db.Column(db.Integer, db.ForeignKey("team.num"), nullable=False)
-    service = db.Column(db.Integer, db.ForeignKey("service.ip"), nullable=False)
+    team_num = db.Column(db.Integer, db.ForeignKey("team.num"), nullable=False)
+    team = db.relationship(Team, backref=db.backref("exfil_data", cascade="all, delete-orphan"))
+    service_ip = db.Column(db.Integer, db.ForeignKey("service.ip"), nullable=False)
+    service = db.relationship(Service, backref=db.backref("exfil_data", cascade="all, delete-orphan"))
     filename = db.Column(db.Text, nullable=False)
     data = db.Column(db.Text, nullable=False)
     found = db.Column(db.DateTime, nullable=False)
 
-    def __init__(self, team, service, filename, data, found):
-        self.team = team
-        self.service = service
+    def __init__(self, team_num, service_ip, filename, data, found):
+        self.team_num = team_num
+        self.service_ip = service_ip
         self.filename = filename
         self.data = data
         self.found = found
@@ -389,26 +472,30 @@ class ExfilData(db.Model):
 
 class MSFExploit(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    service = db.Column(db.Integer, db.ForeignKey("service.ip"), nullable=False)
+    service_ip = db.Column(db.Integer, db.ForeignKey("service.ip"), nullable=False)
+    service = db.relationship(Service, backref=db.backref("msf_exploits", cascade="all, delete-orphan"))
     exploit = db.Column(db.Text, nullable=False)
     options = db.Column(db.Text, nullable=False)
     payload = db.Column(db.Text, nullable=False)
+    last_success = db.Column(db.DateTime, nullable=True)
 
-    def __init__(self, service, exploit, options, payload):
-        self.service = service
+    def __init__(self, service_ip, exploit, options, payload, last_success):
+        self.service_ip = service_ip
         self.exploit = exploit
         self.options = options
         self.payload = payload
+        self.last_success = last_success
 
 
 class FlagRetrieval(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    service = db.Column(db.Integer, db.ForeignKey("service.ip"), nullable=False)
+    service_ip = db.Column(db.Integer, db.ForeignKey("service.ip"), nullable=False)
+    service = db.relationship(Service, backref=db.backref("flag_retrievals", cascade="all, delete-orphan"))
     root_shell = db.Column(db.Boolean, nullable=False)
     command = db.Column(db.Text, nullable=False)
 
-    def __init__(self, service, root_shell, command):
-        self.service = service
+    def __init__(self, service_ip, root_shell, command):
+        self.service_ip = service_ip
         self.root_shell = root_shell
         self.command = command
 

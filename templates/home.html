@@ -1,7 +1,28 @@
 {% extends "base.html" %}
 {% set active_page = "Home" %}
 {% block content %}
-    <p>Total Boxes: {{ total_boxes }}</p>
-    <p>Pwned Boxes: {{ pwned_boxes }}</p>
-    <p>Boxes with Flags: {{ flag_boxes }}</p>
+    <table class="table table-hover table-bordered">
+        <tbody>
+        <tr>
+            <td>Total Boxes</td>
+            <td>{{ total_boxes }}</td>
+        </tr>
+        <tr>
+            <td>Pwned Boxes</td>
+            <td>{{ pwned_boxes }}</td>
+        </tr>
+        <tr>
+            <td>Boxes with Flags</td>
+            <td>{{ flag_boxes }}</td>
+        </tr>
+        <tr>
+            <td>Flags Found</td>
+            <td>{{ flags_found }}</td>
+        </tr>
+        <tr>
+            <td>Flags Submitted</td>
+            <td>{{ flags_submitted }}</td>
+        </tr>
+        </tbody>
+    </table>
 {% endblock %}

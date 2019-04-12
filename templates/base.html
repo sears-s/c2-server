@@ -2,23 +2,21 @@
     ("/admin/settings", "Settings"),
     ("/admin/teams", "Teams"),
     ("/admin/services", 'Services'),
-    ("/admin/boxes", "Boxes")
+    ("/admin/boxes", "Boxes"),
+    ("/admin/flags", "Flags"),
+    ("/admin/exfils", "Exfils"),
+    ("/admin/msfs", "MSF Exploits")
 ] -%}
 {% set active_page = active_page|default('Home') -%}
-
 <!doctype html>
 <html lang="en">
 <head>
     {% block head %}
-        <!-- Required meta tags -->
         <meta charset="utf-8">
         <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
-
         {% block styles %}
-            <!-- Bootstrap CSS -->
             {{ bootstrap.load_css() }}
         {% endblock %}
-
         <title>{{ active_page }} - Admin</title>
     {% endblock %}
 </head>
@@ -41,8 +39,6 @@
         </ul>
     </div>
 </nav>
-
-<!-- Your page contont -->
 <div id="card">
     <h3 class="card-header">{{ active_page }}</h3>
     <div class="card-body">
@@ -63,9 +59,7 @@
         {% block content %}{% endblock %}
     </div>
 </div>
-
 {% block scripts %}
-    <!-- Optional JavaScript -->
     {{ bootstrap.load_js() }}
 {% endblock %}
 </body>

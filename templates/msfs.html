@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% set active_page = "MSF Exploits" %}
+{% block content %}
+    <table class="table table-hover table-bordered">
+        <thead class="thead-light">
+        <tr>
+            <th scope="col">ID</th>
+            <th scope="col">Service</th>
+            <th scope="col">Exploit</th>
+            <th scope="col">Options</th>
+            <th scope="col">Payload</th>
+            <th scope="col">Last Success</th>
+            <th scope="col">Actions</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for msf in msfs %}
+            <tr>
+                <form action="/admin/msfs/update" method="post">
+                    <input type="hidden" name="id" value={{ msf.id }}>
+                    <th scope="row">{{ msf.id }}</th>
+                    <td><input class="form-control" type="text" name="name" value="{{ service.name }}" required></td>
+                    <td><input class="form-control" type="number" name="port" value={{ service.port }} required></td>
+                    <td><input class="form-control" type="number" name="ssh_port" value={{ service.ssh_port }} required>
+                    </td>
+                    <td>
+                        <div class="btn-group" role="group">
+                            <input class="btn btn-primary" type="submit" value="Update">
+                            <a class="btn btn-danger" href="/admin/services/delete?ip={{ service.ip }}">Delete</a>
+                        </div>
+                    </td>
+                </form>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <form action="/admin/services/add" method="post">
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <span class="input-group-text" id="basic-addon1">IP</span>
+            </div>
+            <input type="number" class="form-control" placeholder="IP" aria-label="IP"
+                   aria-describedby="basic-addon1" name="ip" required>
+        </div>
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <span class="input-group-text" id="basic-addon1">Name</span>
+            </div>
+            <input type="text" class="form-control" placeholder="Name" aria-label="Name"
+                   aria-describedby="basic-addon1" name="name" required>
+        </div>
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <span class="input-group-text" id="basic-addon1">Port</span>
+            </div>
+            <input type="number" class="form-control" placeholder="Port" aria-label="Port"
+                   aria-describedby="basic-addon1" name="port" required>
+        </div>
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <span class="input-group-text" id="basic-addon1">SSH Port</span>
+            </div>
+            <input type="number" class="form-control" placeholder="SSH Port" aria-label="SSH Port"
+                   aria-describedby="basic-addon1" name="ssh_port" value=22 required>
+        </div>
+        <input class="btn btn-primary" type="submit" value="Add">
+    </form>
+{% endblock %}
