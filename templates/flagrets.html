@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% set active_page = "Flag Retrievals" %}
+{% block content %}
+    <table class="table table-hover table-bordered">
+        <thead class="thead-light">
+        <tr>
+            <th scope="col">ID</th>
+            <th scope="col">Service</th>
+            <th scope="col">Root Shell</th>
+            <th scope="col">Command</th>
+            <th scope="col">Actions</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for flagret in flagrets %}
+            <tr>
+                <form action="/admin/flagrets/update" method="post">
+                    <input type="hidden" name="id" value={{ flagret.id }}>
+                    <th scope="row">{{ flagret.id }}</th>
+                    <td>{{ service_select(services, flagrets.service_ip, "service_ip") }}</td>
+                    <td>{{ bool_select(flagret.root_shell, "root_shell") }}</td>
+                    <td><input class="form-control" type="text" name="command" value="{{ flagret.command }}" required>
+                    </td>
+                    <td>
+                        <div class="btn-group" role="group">
+                            <input class="btn btn-primary" type="submit" value="Update">
+                            <a class="btn btn-danger" href="/admin/flagrets/delete?id={{ flagret.id }}">Delete</a>
+                        </div>
+                    </td>
+                </form>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <form action="/admin/flagrets/add" method="post">
+        {{ input_service_select(services, "Service", "service_ip") }}
+        {{ input_bool_select("Root Shell", "root_shell") }}
+        {{ input("Command", "command", "text") }}
+        <input class="btn btn-primary" type="submit" value="Add">
+    </form>
+{% endblock %}

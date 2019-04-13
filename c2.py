@@ -281,6 +281,63 @@ def admin_msfs_update():
     return redirect(url_for("admin_msfs"))
 
 
+@app.route("/admin/flagrets", methods=["GET"])
+def admin_flagrets():
+    return render_template("flagrets.html", flagrets=FlagRetrieval.query.all(),
+                           services=Service.query.order_by(Service.ip).all())
+
+
+@app.route("/admin/flagrets/add", methods=["POST"])
+def admin_flagrets_add():
+    # Get form data
+    service_ip = request.form.get("service_ip")
+    root_shell = str_to_bool(request.form.get("root_shell"))
+    command = request.form.get("command")
+
+    # Add to database
+    db.session.add(FlagRetrieval(service_ip, root_shell, command))
+    db.session.commit()
+
+    # Flash and redirect
+    flash("Flag retrieval added")
+    return redirect(url_for("admin_flagrets"))
+
+
+@app.route("/admin/flagrets/delete", methods=["GET"])
+def admin_flagrets_delete():
+    # Get parameters
+    id = request.args.get("id")
+
+    # Delete from database
+    flag_retrieval = FlagRetrieval.query.get(id)
+    db.session.delete(flag_retrieval)
+    db.session.commit()
+
+    # Flash and redirect
+    flash("Flag retrieval deleted")
+    return redirect(url_for("admin_flagrets"))
+
+
+@app.route("/admin/flagrets/update", methods=["POST"])
+def admin_flagrets_update():
+    # Get form data
+    id = request.form.get("id")
+    service_ip = request.form.get("service_ip")
+    root_shell = str_to_bool(request.form.get("root_shell"))
+    command = request.form.get("command")
+
+    # Update in database
+    flag_retrieval = FlagRetrieval.query.get(id)
+    flag_retrieval.service_ip = service_ip
+    flag_retrieval.root_shell = root_shell
+    flag_retrieval.command = command
+    db.session.commit()
+
+    # Flash and redirect
+    flash("Flag retrieval updated")
+    return redirect(url_for("admin_flagrets"))
+
+
 # Exfil route
 @app.route("/e", methods=["POST"])
 def exfil():
@@ -371,6 +428,15 @@ def catch_all(e):
 def half_subnet():
     parts = Setting.query.get("subnet").value.split(".")
     return f"{parts[0]}.{parts[1]}."
+
+
+def str_to_bool(s):
+    if s == "True":
+        return True
+    elif s == "False":
+        return False
+    else:
+        return None
 
 
 def log(info):
