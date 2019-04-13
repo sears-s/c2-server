@@ -8,6 +8,52 @@
     ("/admin/msfs", "MSF Exploits")
 ] -%}
 {% set active_page = active_page|default('Home') -%}
+
+{% macro input(name, id, type, value="") -%}
+    <div class="input-group mb-3">
+        <div class="input-group-prepend">
+            <span class="input-group-text" id="basic-addon1">{{ name }}</span>
+        </div>
+        <input type="{{ type }}" class="form-control" placeholder="{{ name }}" aria-label="{{ name }}"
+               aria-describedby="basic-addon1" name="{{ id }}" value="{{ value }}" required>
+    </div>
+{%- endmacro %}
+
+{% macro service_select(services, ip, id) -%}
+    <select class="form-control" name="{{ id }}" required>
+        {% for service in services %}
+            <option value="{{ service.ip }}"{% if service.ip == ip %} selected{% endif %}>
+                {{ service.name }} ({{ service.ip }})
+            </option>
+        {% endfor %}
+    </select>
+{%- endmacro %}
+
+{% macro input_service_select(services, name, id) -%}
+    <div class="input-group mb-3">
+        <div class="input-group-prepend">
+            <span class="input-group-text" id="basic-addon1">{{ name }}</span>
+        </div>
+        {{ service_select(services, -1, id) }}
+    </div>
+{%- endmacro %}
+
+{% macro bool_select(current, id) -%}
+    <select class="form-control" name="{{ id }}" required>
+        <option value="{{ true }}"{% if current == true %} selected{% endif %}>True</option>
+        <option value="{{ false }}"{% if current == false %} selected{% endif %}>False</option>
+    </select>
+{%- endmacro %}
+
+{% macro input_bool_select(name, id) -%}
+    <div class="input-group mb-3">
+        <div class="input-group-prepend">
+            <span class="input-group-text" id="basic-addon1">{{ name }}</span>
+        </div>
+        {{ bool_select(-1, id) }}
+    </div>
+{%- endmacro %}
+
 <!doctype html>
 <html lang="en">
 <head>

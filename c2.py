@@ -150,7 +150,7 @@ def admin_services_add():
     # Add to database
     db.session.add(Service(ip, name, port, ssh_port))
     for team in Team.query.all():
-        db.session.add(Box(ip, team.num, False, None, False, None))
+        db.session.add(Box(team.num, ip, False, None, False, None))
     db.session.commit()
 
     # Flash and redirect
