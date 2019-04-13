@@ -1,0 +1,74 @@
+{% extends "base.html" %}
+{% set active_page = "SSH Creds" %}
+{% block content %}
+    <div class="container">
+        <div class="row">
+            <div class="col">
+                <table class="table table-hover table-bordered">
+                    <thead class="thead-light">
+                    <tr>
+                        <th scope="col">Username</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for username in usernames %}
+                        <tr>
+                            <form action="/admin/ssh/usernames/update" method="post">
+                                <input type="hidden" name="old_username" value={{ username.username }}>
+                                <td><input class="form-control" type="text" name="username"
+                                           value="{{ username.username }}"
+                                           required></td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <input class="btn btn-primary" type="submit" value="Update">
+                                        <a class="btn btn-danger"
+                                           href="/admin/ssh/usernames/delete?username={{ username.username }}">Delete</a>
+                                    </div>
+                                </td>
+                            </form>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                <form action="/admin/ssh/usernames/add" method="post">
+                    {{ input("Username", "username", "text") }}
+                    <input class="btn btn-primary" type="submit" value="Add">
+                </form>
+            </div>
+            <div class="col">
+                <table class="table table-hover table-bordered">
+                    <thead class="thead-light">
+                    <tr>
+                        <th scope="col">Password</th>
+                        <th scope="col">Actions</th>
+                    </tr>
+                    </thead>
+                    <tbody>
+                    {% for password in passwords %}
+                        <tr>
+                            <form action="/admin/ssh/passwords/update" method="post">
+                                <input type="hidden" name="old_password" value={{ password.password }}>
+                                <td><input class="form-control" type="text" name="password"
+                                           value="{{ password.password }}"
+                                           required></td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <input class="btn btn-primary" type="submit" value="Update">
+                                        <a class="btn btn-danger"
+                                           href="/admin/ssh/passwords/delete?password={{ password.password }}">Delete</a>
+                                    </div>
+                                </td>
+                            </form>
+                        </tr>
+                    {% endfor %}
+                    </tbody>
+                </table>
+                <form action="/admin/ssh/passwords/add" method="post">
+                    {{ input("Password", "password", "text") }}
+                    <input class="btn btn-primary" type="submit" value="Add">
+                </form>
+            </div>
+        </div>
+    </div>
+{% endblock %}

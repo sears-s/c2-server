@@ -33,34 +33,10 @@
         </tbody>
     </table>
     <form action="/admin/services/add" method="post">
-        <div class="input-group mb-3">
-            <div class="input-group-prepend">
-                <span class="input-group-text" id="basic-addon1">IP</span>
-            </div>
-            <input type="number" class="form-control" placeholder="IP" aria-label="IP"
-                   aria-describedby="basic-addon1" name="ip" required>
-        </div>
-        <div class="input-group mb-3">
-            <div class="input-group-prepend">
-                <span class="input-group-text" id="basic-addon1">Name</span>
-            </div>
-            <input type="text" class="form-control" placeholder="Name" aria-label="Name"
-                   aria-describedby="basic-addon1" name="name" required>
-        </div>
-        <div class="input-group mb-3">
-            <div class="input-group-prepend">
-                <span class="input-group-text" id="basic-addon1">Port</span>
-            </div>
-            <input type="number" class="form-control" placeholder="Port" aria-label="Port"
-                   aria-describedby="basic-addon1" name="port" required>
-        </div>
-        <div class="input-group mb-3">
-            <div class="input-group-prepend">
-                <span class="input-group-text" id="basic-addon1">SSH Port</span>
-            </div>
-            <input type="number" class="form-control" placeholder="SSH Port" aria-label="SSH Port"
-                   aria-describedby="basic-addon1" name="ssh_port" value=22 required>
-        </div>
+        {{ input("IP", "ip", "number") }}
+        {{ input("Name", "name", "text") }}
+        {{ input("Port", "port", "number") }}
+        {{ input("SSH Port", "ssh_port", "number", 22) }}
         <input class="btn btn-primary" type="submit" value="Add">
     </form>
 {% endblock %}

@@ -28,20 +28,8 @@
         </tbody>
     </table>
     <form action="/admin/teams/add" method="post">
-        <div class="input-group mb-3">
-            <div class="input-group-prepend">
-                <span class="input-group-text" id="basic-addon1">Number</span>
-            </div>
-            <input type="number" class="form-control" placeholder="Number" aria-label="Number"
-                   aria-describedby="basic-addon1" name="num" required>
-        </div>
-        <div class="input-group mb-3">
-            <div class="input-group-prepend">
-                <span class="input-group-text" id="basic-addon1">Name</span>
-            </div>
-            <input type="text" class="form-control" placeholder="Name" aria-label="Name"
-                   aria-describedby="basic-addon1" name="name" required>
-        </div>
+        {{ input("Number", "num", "number") }}
+        {{ input("Name", "name", "text") }}
         <input class="btn btn-primary" type="submit" value="Add">
     </form>
 {% endblock %}

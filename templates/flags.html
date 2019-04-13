@@ -8,6 +8,7 @@
             <th scope="col">IP</th>
             <th scope="col">Team</th>
             <th scope="col">Service</th>
+            <th scope="col">Source</th>
             <th scope="col">Found</th>
             <th scope="col">Submitted</th>
         </tr>
@@ -19,6 +20,7 @@
                 <td>{{ subnet }}{{ flag.team_num }}.{{ flag.service_ip }}</td>
                 <td>{{ flag.team.name }}</td>
                 <td>{{ flag.service.name }}</td>
+                <td>{{ flag.source }}</td>
                 <td>{{ flag.found }}</td>
                 <td>{{ flag.submitted }}</td>
             </tr>

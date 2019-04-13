@@ -1,6 +1,7 @@
 {% extends "base.html" %}
 {% set active_page = "MSF Exploits" %}
 {% block content %}
+    <p>Enter options like OPTION1:VALUE1,OPTION2:VALUE2</p>
     <table class="table table-hover table-bordered">
         <thead class="thead-light">
         <tr>
@@ -38,7 +39,6 @@
     <form action="/admin/msfs/add" method="post">
         {{ input_service_select(services, "Service", "service_ip") }}
         {{ input("Exploit", "exploit", "text") }}
-        <p>Enter options like OPTION1:VALUE1,OPTION2:VALUE2</p>
         {{ input("Options", "options", "text") }}
         {{ input("Payload", "payload", "text") }}
         <input class="btn btn-primary" type="submit" value="Add">
