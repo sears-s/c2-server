@@ -1,0 +1,301 @@
+{% extends "base.html" %}
+{% set active_page = "Map" %}
+{% block content %}
+    <div class="mapclass" style="margin: 0;padding: 0;background: black;position: relative;">
+	<style>
+		#titlediv {
+          vertical-align: top;
+		  font-family: monospace;
+		  text-align: center;
+		  font-size:48px;
+		  width:100%;
+		  height:70px;
+		  color:white;
+		  background-color:black;
+		  padding:5px;
+		  overflow-y: hidden;
+          position:absolute;
+		}
+
+		#attackdiv {
+		  font-family: monospace;
+		  font-size:10px;
+		  width:45%;
+		  height:100px;
+		  color:white;
+		  background-color:black;
+		  padding:5px;
+		  bottom:0px;
+		  overflow-y: hidden;
+          position:absolute;
+		}
+
+		#container1 {
+            position: relative;
+            width: 95vw;
+            height: 95vh;
+            max-width: 100%;
+            max-height: 100%
+        }
+	</style>
+
+	<script src="https://d3js.org/d3.v3.min.js"></script>
+	<script src="https://d3js.org/d3.geo.projection.v0.min.js"></script>
+	<script src="https://d3js.org/topojson.v1.min.js"></script>
+	<script src="https://datamaps.github.io/scripts/datamaps.usa.min.js"></script>
+	<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+	<script src="{{ url_for('static', filename='jquery.simplemodal-1.4.4.js') }}"></script>
+
+	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
+
+    <section>
+        <div id="titlediv">Delogrand Attack Map</div>
+	<div id="container1"></div>
+	<div id="attackdiv"></div>
+{#	<div id="aboutdiv">#}
+{#		<i class="fa fa-question-circle fa-2x" onClick="about();"></i>#}
+{#	</div>#}
+{##}
+{#	<div id="ccdiv">#}
+{#	<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/80x15.png" /></a>#}
+{#	</div>#}
+
+{#	<div id="about">#}
+{#		<h3>About</h3>#}
+{#		Based on <a href="https://github.com/hrbrmstr/pewpew">IPew Attack Map</a> and <a href="https://threatbutt.com/map/">ThreatButt</a>.#}
+{#		Customized for NCX 2019.<br><br>#}
+{#		URL Parameters:<br>#}
+{#		Use `all_random=1` to allow other competitors to attack each other.<br>#}
+{#		Use `vuln=1` to allow USAFA to be attacked.<br>#}
+{#		Use `bad_day=1` to increase interval of attacks.#}
+{#	</div>#}
+
+</section>
+
+<script>
+
+	// setup default min/max timer range for random draw
+    attack_min = 100 ;
+    attack_max = 2000 ;
+
+    // add/change the attack types here
+    attack_type = [ "ls", "USSDelogrand", "Albert looked at the computer",
+					"Rhodes Scholar Special", "Armitage", "Metasploit Hail Mary",
+					"Shadow Realm banishment", "Just ask", "Cyber 9/12",
+					"aliased sudo", "closed southbound ports", "boi genius blast",
+					"table top exercise"];
+
+    // need this to more easily grab URI query parameters
+    $.extend({
+      getUrlVars: function(){
+        var vars = [], hash;
+        var hashes = window.location.href.slice(window.location.href.indexOf('?') + 1).split('&');
+        for(var i = 0; i < hashes.length; i++)
+        {
+          hash = hashes[i].split('=');
+          vars.push(hash[0]);
+          vars[hash[0]] = hash[1];
+        }
+        return vars;
+      },
+      getUrlVar: function(name){
+        return $.getUrlVars()[name];
+      }
+    });
+
+    // get url parameters
+	// determines if other competitors will attack each other
+    var all_random = $.getUrlVar('all_random');
+	// increases attack interval
+	var bad_day = $.getUrlVar('bad_day');
+	// allows USAFA to be attackeds
+	var vuln = $.getUrlVar('vuln');
+
+    if (typeof bad_day !== 'undefined') {
+      attack_min=200;
+      attack_max=200;
+    }
+
+    // we maintain a fixed queue of "attacks" via this class
+    function FixedQueue( size, initialValues ){
+      initialValues = (initialValues || []);
+      var queue = Array.apply( null, initialValues );
+      queue.fixedSize = size;
+      queue.push = FixedQueue.push;
+      queue.splice = FixedQueue.splice;
+      queue.unshift = FixedQueue.unshift;
+      FixedQueue.trimTail.call( queue );
+      return( queue );
+    }
+
+    FixedQueue.trimHead = function(){
+      if (this.length <= this.fixedSize){ return; }
+      Array.prototype.splice.call( this, 0, (this.length - this.fixedSize) );
+    };
+
+    FixedQueue.trimTail = function(){
+      if (this.length <= this.fixedSize) { return; }
+      Array.prototype.splice.call( this, this.fixedSize, (this.length - this.fixedSize)
+      );
+    };
+
+    FixedQueue.wrapMethod = function( methodName, trimMethod ){
+      var wrapper = function(){
+        var method = Array.prototype[ methodName ];
+        var result = method.apply( this, arguments );
+        trimMethod.call( this );
+        return( result );
+      };
+      return( wrapper );
+    };
+
+    FixedQueue.push = FixedQueue.wrapMethod( "push", FixedQueue.trimHead );
+    FixedQueue.splice = FixedQueue.wrapMethod( "splice", FixedQueue.trimTail );
+    FixedQueue.unshift = FixedQueue.wrapMethod( "unshift", FixedQueue.trimTail );
+
+    var rand = function(min, max) {
+        return Math.random() * (max - min) + min;
+    };
+
+    // the fun begins!
+    //
+    // pretty simple setup ->
+    // * make base Datamap
+    // * setup timers to add random events to a queue
+    // * update the Datamap
+
+    var map = new Datamap({
+
+        scope: 'usa',
+        element: document.getElementById('container1'),
+
+        fills: { defaultFill: 'black', },
+
+        geographyConfig: {
+          dataUrl: null,
+          borderWidth: 0.75,
+          borderColor: '#4393c3',
+          popupTemplate: function(geography, data) {
+			if (geography.properties.name !== "Colorado") {
+				return '<div class="hoverinfo" style="color:white;background:black;text-align:center">' +
+                   geography.properties.name + '</div>';
+			} else {
+				return '<div class="hoverinfo">Air Force Academy<br><img src="'+ '{{ url_for('static', filename='Air Force Academy.png') }}' +'"></div>';
+			}
+
+
+          },
+          popupOnHover: true,
+          highlightOnHover: false,
+          highlightFillColor: 'black',
+          highlightBorderColor: 'rgba(250, 15, 160, 0.2)',
+          highlightBorderWidth: 2
+        },
+    })
+
+	// read in files of map location data
+	//d3.csv("src/uslatlong.csv", function(data) { latlong = data; });
+	d3.csv("{{ url_for('static', filename='academylocs.csv') }}", function(data) {latlong = data; });
+
+    // setup structures for the "hits" (arcs) and circle booms
+    var hits = FixedQueue( 7, [  ] );
+    var boom = FixedQueue( 7, [  ] );
+
+    // we need random numbers and also a way to build random ip addresses
+    function getRandomInt(min, max) {return Math.floor(Math.random() * (max - min + 1)) + min;}
+    function getOctet() {return Math.round(Math.random()*255);}
+    function randomIP () { return(getOctet() + '.' + getOctet() + '.' + getOctet() + '.' + getOctet()); }
+    function getStroke() {return Math.round(Math.random()*100);}
+    function getDestination() {return Math.round(Math.random()*100);}
+
+    // doing this a bit fancy for a hack, but it makes it
+    // easier to group code functions together and have variables
+    // out of global scope
+    var attacks = {
+
+        interval: getRandomInt(attack_min, attack_max),
+
+        init: function(){
+           setTimeout(
+               jQuery.proxy(this.getData, this),
+               this.interval
+           );
+        },
+
+       getData: function() {
+
+           var self = this;
+
+		   if (typeof vuln !== 'undefined') {
+				dst = Math.floor((Math.random() * latlong.length));
+		   } else {
+				dst = Math.floor((Math.random() * (latlong.length - 1)));
+		   }
+
+
+
+		   if (typeof all_random !== 'undefined') {
+             src = Math.floor((Math.random() * latlong.length));
+		   } else {
+			 // attacks always from usafa
+			 src = 9;
+		   }
+
+           if ((dst == src)) {
+            dst = src + 1 ;
+            if (dst > latlong.length-1) { dst = src - 1 }
+           }
+
+           // add hit to the arc queue
+           // use strokeColor to set arc line color
+
+           var srclat = latlong[src].lat;
+           var srclong = latlong[src].long;
+           var dstlat = latlong[dst].lat;
+           var dstlong = latlong[dst].long;
+           which_attack = attack_type[Math.floor((Math.random() * attack_type.length))];
+           var srccountry = latlong[src]["country"];
+
+           attackdiv_slatlong = latlong[dst]["country"];
+
+           // Specify attack color
+           strokeColor = 'red';
+
+		   // add to hits queue
+           hits.push( { origin : { latitude: +srclat, longitude: +srclong },
+                        destination : { latitude: +dstlat, longitude: +dstlong } } );
+           map.arc(hits, {strokeWidth: 2, strokeColor: strokeColor});
+
+           // add boom to the bubbles queue
+           boom.push( { radius: 7, latitude: +dstlat, longitude: +dstlong,
+                        fillOpacity: 0.5, attk: which_attack, dst: attackdiv_slatlong} );
+           map.bubbles(boom, {
+                popupTemplate: function(geo, data) {
+                    return '<div class="hoverinfo" style="text-align:center">' + data.dst + '<br>' + '<img src="' + '{{ url_for('static', filename=data) }}' + data.dst + '.png"><br>PWNed with: ' + data.attk + '</div>';
+
+                }
+            });
+
+           // update the scrolling attack div
+           $('#attackdiv').append(srccountry + " (" + randomIP() + ") " +
+                                  " <span style='color:red'>attacks</span> " +
+                                  attackdiv_slatlong+  " (" + randomIP() + ") " +
+                                  " <span style='color:steelblue'>(" + which_attack + ")</span> " +
+                                  "<br/>");
+           $('#attackdiv').animate({scrollTop: $('#attackdiv').prop("scrollHeight")}, 500);
+
+           // pick a new random time and start the timer again!
+           this.interval = getRandomInt(attack_min, attack_max);
+           this.init() ;
+       },
+    };
+
+    // start the ball rolling!
+    attacks.init();
+
+    // lazy-dude's responsive window
+    d3.select(window).on('resize', function() { location.reload(); });
+
+</script>
+    </div>
+{% endblock %}
