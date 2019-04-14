@@ -468,6 +468,9 @@ def admin_ssh_passwords_update():
     log("admin", f"SSH password {password} updated by {request.remote_addr}")
     return redirect(url_for("admin_ssh"))
 
+@app.route("/admin/map", methods=["GET"])
+def admin_map():
+    return render_template("map.html")
 
 # </editor-fold>
 
