@@ -1,0 +1,26 @@
+{% extends "base.html" %}
+{% set active_page = "Logs" %}
+{% block content %}
+    <form action="/admin/logs" method="get">
+        <div class="input-group mb-3">
+            <div class="input-group-prepend">
+                <span class="input-group-text" id="basic-addon1">Type</span>
+            </div>
+            <select class="form-control" name="type">
+                <option value="all"{% if "all" == selected_type %} selected{% endif %}>
+                    all
+                </option>
+                {% for type in types %}
+                    <option value="{{ type }}"{% if type == selected_type %} selected{% endif %}>
+                        {{ type }}
+                    </option>
+                {% endfor %}
+            </select>
+        </div>
+        {{ input("Number", "num", "number", num) }}
+        <input class="btn btn-primary" type="submit" value="View">
+    </form>
+    {% for log in logs %}
+        <p>[{{ log.datetime }}] {{ log.message }}</p>
+    {% endfor %}
+{% endblock %}

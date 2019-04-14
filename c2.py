@@ -97,6 +97,30 @@ def admin_settings_update():
     return redirect(url_for("admin_settings"))
 
 
+@app.route("/admin/logs", methods=["GET"])
+def admin_logs():
+    # Get parameters
+    type = request.args.get("type")
+    num = request.args.get("num")
+    if type == "all":
+        type = None
+
+    # Query database
+    if not num:
+        num = 100
+    else:
+        num = int(num)
+    if type:
+        logs = Log.query.filter_by(type=type).order_by(Log.datetime.desc()).limit(num).all()
+    else:
+        type = "all"
+        logs = Log.query.order_by(Log.datetime.desc()).limit(num).all()
+
+    print(db.session.query(Log.type).distinct().all())
+    return render_template("logs.html", logs=logs, selected_type=type,
+                           types=db.session.query(Log.type).distinct().all()[0], num=num)
+
+
 @app.route("/admin/teams", methods=["GET"])
 def admin_teams():
     return render_template("teams.html", teams=Team.query.order_by(Team.num).all())
