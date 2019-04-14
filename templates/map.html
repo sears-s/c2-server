@@ -1,97 +1,42 @@
 {% extends "base.html" %}
 {% set active_page = "Map" %}
 {% block content %}
+    <div class="mapclass" style="margin: 0;padding: 0;background: black;position: relative;">
 	<style>
-		card-body {
-		  margin: 0;
-		  padding: 0;
-		  background: black;
-		}
-
 		#titlediv {
+          vertical-align: top;
 		  font-family: monospace;
 		  text-align: center;
 		  font-size:48px;
-		  position:fixed;
 		  width:100%;
-		  height:60px;
+		  height:70px;
 		  color:white;
 		  background-color:black;
 		  padding:5px;
-		  top:0px;
-		  overflow-y: auto;
+		  overflow-y: hidden;
+          position:absolute;
 		}
 
 		#attackdiv {
 		  font-family: monospace;
 		  font-size:10px;
-		  position:fixed;
-		  width:50%;
+		  width:45%;
 		  height:100px;
 		  color:white;
 		  background-color:black;
 		  padding:5px;
 		  bottom:0px;
 		  overflow-y: hidden;
+          position:absolute;
 		}
 
 		#container1 {
-		  position: relative;
-		  width: 95vw;
-		  height: 95vh;
-		  max-width:100%;
-		  max-height:100%
-		}
-
-		#about {
-		  display: hidden;
-		}
-
-		#aboutdiv {
-		  text-align:right;
-		  width:100px;
-		  height:100px;
-		  top:0px;
-		  right:0px;
-		  position:fixed;
-		  padding:10px;
-		  color: white;
-		}
-
-		#ccdiv {
-		  text-align:right;
-		  width:100px;
-		  height:20px;
-		  bottom:0px;
-		  right:0px;
-		  position:fixed;
-		  padding:5px;
-		  color: white;
-		}
-
-		#about {display:none;}
-
-		/* Overlay */
-		#simplemodal-overlay {background-color:#000;}
-
-		/* Container */
-		#simplemodal-container {height:460px; width:600px; color:#bbb; background-color:#333; border:4px solid #444; padding:12px;}
-		#simplemodal-container .simplemodal-data {padding:8px;}
-		#simplemodal-container code {background:#141414; border-left:3px solid #65B43D; color:#bbb; display:block; font-size:12px; margin-bottom:12px; padding:4px 6px 6px;}
-		#simplemodal-container a {color:#ddd;}
-		#simplemodal-container a.modalCloseImg {background:url(../img/basic/x.png) no-repeat; width:25px; height:29px; display:inline; z-index:3200; position:absolute; top:-15px; right:-16px; cursor:pointer;}
-		#simplemodal-container h3 {color:#84b8d9;}
-		#simplemodal-container a.modalCloseImg {
-		  background:url({{ url_for('static', filename='x.png') }}) no-repeat; /* adjust url as required */
-		  width:25px;
-		  height:29px;
-		  display:inline;
-		  z-index:3200;
-		  position:absolute;
-		  top:-15px;
-		  right:-18px;
-		  cursor:pointer;
-		}
+            position: relative;
+            width: 95vw;
+            height: 95vh;
+            max-width: 100%;
+            max-height: 100%
+        }
 	</style>
 
 	<script src="https://d3js.org/d3.v3.min.js"></script>
@@ -101,43 +46,31 @@
 	<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
 	<script src="{{ url_for('static', filename='jquery.simplemodal-1.4.4.js') }}"></script>
 
-	<script>
-		function about() {
-		  $("#about").modal();
-		}
-	</script>
-
 	<link href="//maxcdn.bootstrapcdn.com/font-awesome/4.2.0/css/font-awesome.min.css" rel="stylesheet">
 
     <section>
-	<center><div id="container1"></div></center>
-
-	<div id="titlediv">Delogrand Attack Map</div>
+        <div id="titlediv">Delogrand Attack Map</div>
+	<div id="container1"></div>
 	<div id="attackdiv"></div>
-	<div id="aboutdiv">
-		<i class="fa fa-question-circle fa-2x" onClick="about();"></i>
-	</div>
+{#	<div id="aboutdiv">#}
+{#		<i class="fa fa-question-circle fa-2x" onClick="about();"></i>#}
+{#	</div>#}
+{##}
+{#	<div id="ccdiv">#}
+{#	<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/80x15.png" /></a>#}
+{#	</div>#}
 
-	<div id="ccdiv">
-	<a rel="license" href="http://creativecommons.org/licenses/by-sa/4.0/"><img alt="Creative Commons License" style="border-width:0" src="https://i.creativecommons.org/l/by-sa/4.0/80x15.png" /></a>
-	</div>
+{#	<div id="about">#}
+{#		<h3>About</h3>#}
+{#		Based on <a href="https://github.com/hrbrmstr/pewpew">IPew Attack Map</a> and <a href="https://threatbutt.com/map/">ThreatButt</a>.#}
+{#		Customized for NCX 2019.<br><br>#}
+{#		URL Parameters:<br>#}
+{#		Use `all_random=1` to allow other competitors to attack each other.<br>#}
+{#		Use `vuln=1` to allow USAFA to be attacked.<br>#}
+{#		Use `bad_day=1` to increase interval of attacks.#}
+{#	</div>#}
 
-	<div id="about">
-		<h3>About</h3>
-		Based on <a href="https://github.com/hrbrmstr/pewpew">IPew Attack Map</a> and <a href="https://threatbutt.com/map/">ThreatButt</a>.
-		Customized for NCX 2019.<br><br>
-		URL Parameters:<br>
-		Use `all_random=1` to allow other competitors to attack each other.<br>
-		Use `vuln=1` to allow USAFA to be attacked.<br>
-		Use `bad_day=1` to increase interval of attacks.
-	</div>
-
-	<!-- Use Hash-Bang to maintain scroll position when closing modal -->
-	<a href="#!" class="modal-close" title="Close this modal"
-		data-dismiss="modal" data-close="Close">&times;
-	</a>
 </section>
-
 
 <script>
 
@@ -244,7 +177,7 @@
           borderColor: '#4393c3',
           popupTemplate: function(geography, data) {
 			if (geography.properties.name !== "Colorado") {
-				return '<div class="hoverinfo" style="color:white;background:black">' +
+				return '<div class="hoverinfo" style="color:white;background:black;text-align:center">' +
                    geography.properties.name + '</div>';
 			} else {
 				return '<div class="hoverinfo">Air Force Academy<br><img src="'+ '{{ url_for('static', filename='Air Force Academy.png') }}' +'"></div>';
@@ -338,7 +271,7 @@
                         fillOpacity: 0.5, attk: which_attack, dst: attackdiv_slatlong} );
            map.bubbles(boom, {
                 popupTemplate: function(geo, data) {
-                    return '<div class="hoverinfo">' + data.dst + '<br>' + '<img src="' + '{{ url_for('static', filename=data) }}' + data.dst + '.png"><br>PWNed with: ' + data.attk + '</div>';
+                    return '<div class="hoverinfo" style="text-align:center">' + data.dst + '<br>' + '<img src="' + '{{ url_for('static', filename=data) }}' + data.dst + '.png"><br>PWNed with: ' + data.attk + '</div>';
 
                 }
             });
@@ -364,4 +297,5 @@
     d3.select(window).on('resize', function() { location.reload(); });
 
 </script>
+    </div>
 {% endblock %}
