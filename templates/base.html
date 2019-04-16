@@ -1,4 +1,5 @@
 {% set navigation_bar = [
+    ("/admin/map", "Map"),
     ("/admin/settings", "Settings"),
     ("/admin/logs", "Logs"),
     ("/admin/teams", "Teams"),
@@ -8,8 +9,7 @@
     ("/admin/exfils", "Exfils"),
     ("/admin/msfs", "MSF Exploits"),
     ("/admin/flagrets", "Flag Retrievals"),
-    ("/admin/ssh", "SSH Creds"),
-    ("/admin/map", "Map")
+    ("/admin/ssh", "SSH Creds")
 ] -%}
 {% set active_page = active_page|default('Home') -%}
 
