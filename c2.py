@@ -17,6 +17,7 @@ from flask_sqlalchemy import SQLAlchemy
 PORT = 80
 DEBUG = True
 TEMPLATE_DIR = "templates"
+SCRIPTS_DIR = "scripts"
 DB_FILE = "c2.db"
 LOG_FILE = "c2.log"
 THREADS = []
@@ -335,66 +336,61 @@ def admin_exfils_view():
     return exfil_data.data
 
 
-@app.route("/admin/msfs", methods=["GET"])
-def admin_msfs():
-    return render_template("msfs.html", msfs=MSFExploit.query.all(), services=Service.query.order_by(Service.ip).all())
+@app.route("/admin/scripts", methods=["GET"])
+def admin_scripts():
+    return render_template("scripts.html", scripts=Script.query.order_by(Script.id).all(),
+                           services=Service.query.order_by(Service.ip).all(), scripts_dir=SCRIPTS_DIR)
 
 
-@app.route("/admin/msfs/add", methods=["POST"])
-def admin_msfs_add():
+@app.route("/admin/scripts/add", methods=["POST"])
+def admin_scripts_add():
     # Get form data
     service_ip = request.form.get("service_ip")
-    exploit = request.form.get("exploit")
-    options = request.form.get("options")
-    payload = request.form.get("payload")
+    path = request.form.get("path")
 
     # Add to database
-    db.session.add(MSFExploit(service_ip, exploit, options, payload, None))
+    db.session.add(Script(service_ip, path))
     db.session.commit()
 
     # Flash and redirect
-    flash("MSF exploit added")
-    log("admin", f"MSF exploit added by {request.remote_addr}")
-    return redirect(url_for("admin_msfs"))
+    flash("Script added")
+    log("admin", f"script added by {request.remote_addr}")
+    return redirect(url_for("admin_scripts"))
 
 
-@app.route("/admin/msfs/delete", methods=["GET"])
-def admin_msfs_delete():
+@app.route("/admin/scripts/delete", methods=["GET"])
+def admin_scripts_delete():
     # Get parameters
     id = request.args.get("id")
 
     # Delete from database
-    msf_exploit = MSFExploit.query.get(id)
-    db.session.delete(msf_exploit)
+    script = Script.query.get(id)
+    db.session.delete(script)
     db.session.commit()
 
     # Flash and redirect
-    flash("MSF exploit deleted")
-    log("admin", f"MSF exploit {id} deleted by {request.remote_addr}")
-    return redirect(url_for("admin_msfs"))
+    flash("Script deleted")
+    log("admin", f"script {id} deleted by {request.remote_addr}")
+    return redirect(url_for("admin_scripts"))
 
 
-@app.route("/admin/msfs/update", methods=["POST"])
-def admin_msfs_update():
+@app.route("/admin/scripts/update", methods=["POST"])
+def admin_scripts_update():
     # Get form data
     id = request.form.get("id")
     service_ip = request.form.get("service_ip")
-    exploit = request.form.get("exploit")
-    options = request.form.get("options")
-    payload = request.form.get("payload")
+    path = request.form.get("path")
 
     # Update in database
-    msf_exploit = MSFExploit.query.get(id)
-    msf_exploit.service_ip = service_ip
-    msf_exploit.exploit = exploit
-    msf_exploit.options = options
-    msf_exploit.payload = payload
+    script = Script.query.get(id)
+    script.service_ip = service_ip
+    script.path = path
     db.session.commit()
 
     # Flash and redirect
-    flash("MSF exploit updated")
-    log("admin", f"MSF exploit {id} updated by {request.remote_addr}")
-    return redirect(url_for("admin_msfs"))
+    flash("Script updated")
+    log("admin", f"script {id} updated by {request.remote_addr}")
+    return redirect(url_for("admin_scripts"))
 
 
 @app.route("/admin/flagrets", methods=["GET"])
@@ -565,7 +561,7 @@ def admin_ssh_passwords_update():
 
 # Install route
 @app.route("/i", methods=["GET"])
-def update():
+def install():
     with open(Setting.query.get("malware_path", "r")) as f:
         data = f.read()
     return data
@@ -1032,21 +1028,15 @@ class ExfilData(db.Model):
         self.found = found
 
 
-class MSFExploit(db.Model):
+class Script(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     service_ip = db.Column(db.Integer, db.ForeignKey("service.ip"), nullable=False)
-    service = db.relationship(Service, backref=db.backref("msf_exploits", cascade="all, delete-orphan"))
-    exploit = db.Column(db.Text, nullable=False)
-    options = db.Column(db.Text, nullable=False)
-    payload = db.Column(db.Text, nullable=False)
-    last_success = db.Column(db.DateTime, nullable=True)
+    service = db.relationship(Service, backref=db.backref("scripts", cascade="all, delete-orphan"))
+    path = db.Column(db.Text, nullable=False)
 
-    def __init__(self, service_ip, exploit, options, payload, last_success):
+    def __init__(self, service_ip, path):
         self.service_ip = service_ip
-        self.exploit = exploit
-        self.options = options
-        self.payload = payload
-        self.last_success = last_success
+        self.path = path
 
 
 class FlagRetrieval(db.Model):

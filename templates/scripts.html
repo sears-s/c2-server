@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% set active_page = "Scripts" %}
+{% block content %}
+    <p>Scripts should be Python 2.7 and located in the {{ scripts_dir }} directory.</p>
+    <table class="table table-hover table-bordered">
+        <thead class="thead-light">
+        <tr>
+            <th scope="col">ID</th>
+            <th scope="col">Service</th>
+            <th scope="col">Path</th>
+            <th scope="col">Actions</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for script in scripts %}
+            <tr>
+                <form action="/admin/scripts/update" method="post">
+                    <input type="hidden" name="id" value={{ script.id }}>
+                    <th scope="row">{{ script.id }}</th>
+                    <td>{{ service_select(services, script.service_ip, "service_ip") }}</td>
+                    <td><input class="form-control" type="text" name="path" value="{{ script.path }}" required></td>
+                    <td>
+                        <div class="btn-group" role="group">
+                            <input class="btn btn-primary" type="submit" value="Update">
+                            <a class="btn btn-danger" href="/admin/scripts/delete?id={{ script.id }}">Delete</a>
+                        </div>
+                    </td>
+                </form>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <form action="/admin/scripts/add" method="post">
+        {{ input_service_select(services, "Service", "service_ip") }}
+        {{ input("Path", "path", "text") }}
+        <input class="btn btn-primary" type="submit" value="Add">
+    </form>
+{% endblock %}
