@@ -21,6 +21,6 @@
         <input class="btn btn-primary" type="submit" value="View">
     </form>
     {% for log in logs %}
-        <p>[{{ log.datetime }}] {{ log.message }}</p>
+        <p>[{{ log.datetime }}]{% if selected_type == "all" %} [{{ log.type }}]{% endif %} {{ log.message }}</p>
     {% endfor %}
 {% endblock %}

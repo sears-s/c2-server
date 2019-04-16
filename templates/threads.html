@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% set active_page = "Threads" %}
+{% block content %}
+    <table class="table table-hover table-bordered">
+        <thead class="thead-light">
+        <tr>
+            <th scope="col">Name</th>
+            <th scope="col">Is Alive</th>
+            <th scope="col">Actions</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for thread in threads %}
+            <tr>
+                <th scope="row">{{ thread.name }}</th>
+                <td>{{ thread.is_alive() }}</td>
+                <td>
+                    <a class="btn btn-primary" href="/admin/threads/start?name={{ thread.name }}">Start</a>
+                </td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+{% endblock %}
