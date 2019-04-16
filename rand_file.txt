@@ -1,0 +1,16 @@
+/bin/sh
+/bin/bash
+sh
+bash
+' or 1 == 1; --
+" or 1 == 1; --
+CyberChef
+POST admin.php
+GET admin.php
+SELECT * FROM users
+UNION SELECT
+ifconfig
+ipconfig
+powershell.exe
+cmd.exe
+ls /tmp

