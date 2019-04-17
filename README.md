@@ -10,7 +10,7 @@ Command and control server for attack/defense competition.
 * Metasploit and msfrpcd. Check if installed by running `msfrpcd -h`.
 
 ## Initial Setup
-* Run the server with `python3 c2.py`. If it is not the first time running, run `pkill -f c2.py` to kill leftover threads.
+* Run the server with `python3 c2.py`. If it is not the first time running, run `pkill -e -9 "c2.py"` to kill leftover threads.
 * Place the first stage binary of the malware in the same directory, named `malware_installer`.
 * To access the admin page, go to http://localhost/admin from the same host.
 * Settings you may want to adjust:
