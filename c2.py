@@ -358,16 +358,16 @@ def admin_flags_submit():
 @app.route("/admin/flags/mark", methods=["GET"])
 def admin_flags_mark():
     # Get parameters
-    id = int(request.args.get("id"))
+    flag = request.args.get("id")
 
     # Update in database
-    flag = Flag.query.get(id)
+    flag = Flag.query.get(flag)
     flag.submitted = datetime.now()
     db.session.commit()
 
     # Flash and redirect
     flash("Flag marked as submitted")
-    log("admin", f"flag {id} marked as submitted by {request.remote_addr}")
+    log("admin", f"flag {flag} marked as submitted by {request.remote_addr}")
     return redirect(url_for("admin_flags"))
 
 
