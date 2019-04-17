@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 
+import json
 import os
 import random
 import re
@@ -12,6 +13,7 @@ from datetime import datetime, timedelta
 from threading import Thread
 
 import paramiko
+import requests
 from flask import Flask, request, render_template, flash, redirect, url_for
 from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
@@ -1107,16 +1109,28 @@ def submit_flags(flags):
     session = Setting.query.get("flag_submit_session").value
     host = "https://combat.ctf.ncx2019.com/challenges"
 
+    # Login
+    try:
+        s = requests.session()
+        nonce = s.get(host).text.split('csrf_nonce = "')[1].split('"')[0]
+        s.post(host + "login", data={"name": "sschulz", "password": "lololand78", "nonce": nonce})
+        nonce = s.get(host + "challenges").text.split('csrf_nonce = "')[1].split('"')[0]
+    except:
+        return
+
     # Iterate over flags to submit
     for flag in flags:
-        # TODO: submit the flag and check for success
-        success = False
-        if success:
+        try:
+            data = json.loads(s.post(host + "api/v1/challenges/attempt", headers={"csrf-token": nonce},
+                                     json={"challenge_id": 1, "submission": flag.flag}).text)
+        except:
+            continue
+        if "intercepted" in data["data"]["message"].lower():
             flag.submitted = datetime.now()
             db.session.commit()
-            log("submit_flags", f"flag {flag} successfully submitted")
+            log("submit_flags", f"flag {flag.flag} successfully submitted")
         else:
-            log("submit_flags", f"failed to submit flag {flag}")
+            log("submit_flags", f"failed to submit flag {flag.flag} because {data['data']['message']}")
 
 
 def get_ip(subnet, box):
