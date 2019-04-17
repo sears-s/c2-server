@@ -421,11 +421,10 @@ def admin_flagrets():
 def admin_flagrets_add():
     # Get form data
     service_ip = request.form.get("service_ip")
-    root_shell = str_to_bool(request.form.get("root_shell"))
     command = request.form.get("command")
 
     # Add to database
-    db.session.add(FlagRetrieval(service_ip, root_shell, command))
+    db.session.add(FlagRetrieval(service_ip, command))
     db.session.commit()
 
     # Flash and redirect
@@ -455,13 +454,11 @@ def admin_flagrets_update():
     # Get form data
     id = request.form.get("id")
     service_ip = request.form.get("service_ip")
-    root_shell = str_to_bool(request.form.get("root_shell"))
     command = request.form.get("command")
 
     # Update in database
     flag_retrieval = FlagRetrieval.query.get(id)
     flag_retrieval.service_ip = service_ip
-    flag_retrieval.root_shell = root_shell
     flag_retrieval.command = command
     db.session.commit()
 
@@ -724,6 +721,7 @@ def run_scripts():
     while True:
 
         # Get settings from database
+        subnet = Setting.query.get("subnet")
         try:
             interval = int(Setting.query.get("run_scripts_interval").value)
         except:
@@ -740,9 +738,27 @@ def run_scripts():
         for script in scripts:
 
             # Check if script exists
-            if not os.path.isfile(SCRIPTS_DIR + script.path):
-                log("run_scripts", f"script {script.path} does not exist")
+            path = SCRIPTS_DIR + script.path
+            if not os.path.isfile(path):
+                log("run_scripts", f"script {path} does not exist")
                 continue
+
+            # Iterate over boxes
+            for box in boxes:
+                if box.service_ip == script.service_ip and (script.target_pwned and not box.pwned):
+
+                    # Run the script
+                    ip = get_ip(subnet, box)
+                    log("run_scripts", f"running script {script.path} against {ip}")
+                    try:
+                        output = subprocess.check_output(f"python {path} {ip}", shell=True, stderr=subprocess.STDOUT)
+                    except subprocess.CalledProcessError as e:
+                        log("run_scripts", f"script {script.path} against {ip} failed with '{e.output}'")
+                        continue
+                    log("run_scripts", f"script {script.path} against {ip} received '{output}'")
+
+                    # Extract the flags
+                    extract_flags(output, box.team_num, box.service_ip, f"script {script.path}")
 
         # Wait until next run
         log("run_scripts", f"sleeping for {interval} seconds")
@@ -826,8 +842,19 @@ def run_flag_retrievals():
             log("run_flag_retrievals", "Invalid run_flag_retrievals_interval setting")
             interval = DEFAULT_RUN_FLAG_RETRIEVALS_INTERVAL
 
+        # Get all flag retrievals
+        flag_retrievals = FlagRetrieval.query.all()
+
         # Get all boxes
         boxes = Box.query.all()
+
+        # Iterate over flag retrievals
+        for flag_retrieval in flag_retrievals:
+
+            # Iterate over boxes
+            for box in boxes:
+                if box.service_ip == flag_retrieval.service_ip:
+                    continue
 
         # Wait until next check
         log("run_flag_retrievals", f"sleeping for {interval} seconds")
@@ -1112,12 +1139,10 @@ class FlagRetrieval(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     service_ip = db.Column(db.Integer, db.ForeignKey("service.ip"), nullable=False)
     service = db.relationship(Service, backref=db.backref("flag_retrievals", cascade="all, delete-orphan"))
-    root_shell = db.Column(db.Boolean, nullable=False)
     command = db.Column(db.Text, nullable=False)
 
-    def __init__(self, service_ip, root_shell, command):
+    def __init__(self, service_ip, command):
         self.service_ip = service_ip
-        self.root_shell = root_shell
         self.command = command
 
 
