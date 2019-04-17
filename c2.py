@@ -12,7 +12,6 @@ from datetime import datetime, timedelta
 from threading import Thread
 
 import paramiko
-import requests
 from flask import Flask, request, render_template, flash, redirect, url_for
 from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
@@ -95,6 +94,7 @@ def main():
     add_setting("spam_rand_file", DEFAULT_SPAM_RAND_FILE, "Path to file with random strings line by line")
 
     # Run MSFRPC
+    subprocess.call("pkill -f c2.py", shell=True)
     subprocess.call("pkill msfrpcd", shell=True)
     subprocess.call(f"msfrpcd -P {MSFRPC_PW} -S -a 127.0.0.1", shell=True)
 
