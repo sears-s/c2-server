@@ -991,9 +991,9 @@ def ssh_bruteforce():
                     # Close the connection
                     client.close()
 
-            # Wait until next try
-            log("ssh_bruteforce", f"sleeping for {interval} seconds")
-            time.sleep(interval)
+        # Wait until next try
+        log("ssh_bruteforce", f"sleeping for {interval} seconds")
+        time.sleep(interval)
 
 
 def spam():
