@@ -215,7 +215,7 @@ def admin_teams():
 @app.route("/admin/teams/add", methods=["POST"])
 def admin_teams_add():
     # Get form data
-    num = request.form.get("num")
+    num = int(request.form.get("num"))
     name = request.form.get("name")
 
     # Add to database
@@ -233,7 +233,7 @@ def admin_teams_add():
 @app.route("/admin/teams/delete", methods=["GET"])
 def admin_teams_delete():
     # Get parameters
-    num = request.args.get("num")
+    num = int(request.args.get("num"))
 
     # Delete from database
     team = Team.query.get(num)
@@ -249,7 +249,7 @@ def admin_teams_delete():
 @app.route("/admin/teams/update", methods=["POST"])
 def admin_teams_update():
     # Get form data
-    num = request.form.get("num")
+    num = int(request.form.get("num"))
     name = request.form.get("name")
 
     # Update in database
@@ -271,10 +271,10 @@ def admin_services():
 @app.route("/admin/services/add", methods=["POST"])
 def admin_services_add():
     # Get form data
-    ip = request.form.get("ip")
+    ip = int(request.form.get("ip"))
     name = request.form.get("name")
-    port = request.form.get("port")
-    ssh_port = request.form.get("ssh_port")
+    port = int(request.form.get("port"))
+    ssh_port = int(request.form.get("ssh_port"))
 
     # Add to database
     db.session.add(Service(ip, name, port, ssh_port))
@@ -291,7 +291,7 @@ def admin_services_add():
 @app.route("/admin/services/delete", methods=["GET"])
 def admin_services_delete():
     # Get parameters
-    ip = request.args.get("ip")
+    ip = int(request.args.get("ip"))
 
     # Delete from database
     service = Service.query.get(ip)
@@ -307,10 +307,10 @@ def admin_services_delete():
 @app.route("/admin/services/update", methods=["POST"])
 def admin_services_update():
     # Get form data
-    ip = request.form.get("ip")
+    ip = int(request.form.get("ip"))
     name = request.form.get("name")
-    port = request.form.get("port")
-    ssh_port = request.form.get("ssh_port")
+    port = int(request.form.get("port"))
+    ssh_port = int(request.form.get("ssh_port"))
 
     # Update in database
     service = Service.query.get(ip)
@@ -345,7 +345,7 @@ def admin_exfils():
 @app.route("/admin/exfils/view", methods=["GET"])
 def admin_exfils_view():
     # Get parameters
-    id = request.args.get("id")
+    id = int(request.args.get("id"))
 
     # Get from database
     exfil_data = ExfilData.query.get(id)
@@ -364,7 +364,7 @@ def admin_scripts():
 @app.route("/admin/scripts/add", methods=["POST"])
 def admin_scripts_add():
     # Get form data
-    service_ip = request.form.get("service_ip")
+    service_ip = int(request.form.get("service_ip"))
     path = request.form.get("path")
     target_pwned = str_to_bool(request.form.get("target_pwned"))
 
@@ -381,7 +381,7 @@ def admin_scripts_add():
 @app.route("/admin/scripts/delete", methods=["GET"])
 def admin_scripts_delete():
     # Get parameters
-    id = request.args.get("id")
+    id = int(request.args.get("id"))
 
     # Delete from database
     script = Script.query.get(id)
@@ -397,8 +397,8 @@ def admin_scripts_delete():
 @app.route("/admin/scripts/update", methods=["POST"])
 def admin_scripts_update():
     # Get form data
-    id = request.form.get("id")
-    service_ip = request.form.get("service_ip")
+    id = int(request.form.get("id"))
+    service_ip = int(request.form.get("service_ip"))
     path = request.form.get("path")
     target_pwned = str_to_bool(request.form.get("target_pwned"))
 
@@ -424,7 +424,7 @@ def admin_flagrets():
 @app.route("/admin/flagrets/add", methods=["POST"])
 def admin_flagrets_add():
     # Get form data
-    service_ip = request.form.get("service_ip")
+    service_ip = int(request.form.get("service_ip"))
     root_shell = str_to_bool(request.form.get("root_shell"))
     command = request.form.get("command")
 
@@ -441,7 +441,7 @@ def admin_flagrets_add():
 @app.route("/admin/flagrets/delete", methods=["GET"])
 def admin_flagrets_delete():
     # Get parameters
-    id = request.args.get("id")
+    id = int(request.args.get("id"))
 
     # Delete from database
     flag_retrieval = FlagRetrieval.query.get(id)
@@ -457,8 +457,8 @@ def admin_flagrets_delete():
 @app.route("/admin/flagrets/update", methods=["POST"])
 def admin_flagrets_update():
     # Get form data
-    id = request.form.get("id")
-    service_ip = request.form.get("service_ip")
+    id = int(request.form.get("id"))
+    service_ip = int(request.form.get("service_ip"))
     root_shell = str_to_bool(request.form.get("root_shell"))
     command = request.form.get("command")
 
