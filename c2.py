@@ -94,7 +94,6 @@ def main():
     add_setting("spam_rand_file", DEFAULT_SPAM_RAND_FILE, "Path to file with random strings line by line")
 
     # Run MSFRPC
-    subprocess.call("kill $(pgrep -f c2.py | grep -v ^$$\$)", shell=True)
     subprocess.call("pkill msfrpcd", shell=True)
     subprocess.call(f"msfrpcd -P {MSFRPC_PW} -S -a 127.0.0.1", shell=True)
 
