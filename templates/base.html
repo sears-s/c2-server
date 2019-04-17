@@ -10,6 +10,7 @@
     ("/admin/exfils", "Exfils"),
     ("/admin/scripts", "Scripts"),
     ("/admin/flagrets", "Flag Retrievals"),
+    ("/admin/commands", "Queued Commands"),
     ("/admin/ssh", "SSH Creds")
 ] -%}
 {% set active_page = active_page|default('Home') -%}
@@ -56,6 +57,26 @@
             <span class="input-group-text" id="basic-addon1">{{ name }}</span>
         </div>
         {{ bool_select(-1, id) }}
+    </div>
+{%- endmacro %}
+
+{% macro box_select(boxes, id) -%}
+    <select class="form-control" name="{{ id }}" required>
+        <option value="all" selected>All</option>
+        {% for box in boxes %}
+            <option value="{{ box.team_num }}-{{ box.service_ip }}">
+                {{ box.team.name }} - {{ box.service.name }}
+            </option>
+        {% endfor %}
+    </select>
+{%- endmacro %}
+
+{% macro input_box_select(boxes, name, id) -%}
+    <div class="input-group mb-3">
+        <div class="input-group-prepend">
+            <span class="input-group-text" id="basic-addon1">{{ name }}</span>
+        </div>
+        {{ box_select(boxes, id) }}
     </div>
 {%- endmacro %}
 

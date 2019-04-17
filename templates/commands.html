@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% set active_page = "Queued Commands" %}
+{% block content %}
+    <p>Flags are extracted from stdout on remote shell.</p>
+    <table class="table table-hover table-bordered">
+        <thead class="thead-light">
+        <tr>
+            <th scope="col">ID</th>
+            <th scope="col">Team</th>
+            <th scope="col">Service</th>
+            <th scope="col">IP</th>
+            <th scope="col">Root Shell</th>
+            <th scope="col">Command</th>
+            <th scope="col">Actions</th>
+        </tr>
+        </thead>
+        <tbody>
+        {% for queued_command in queued_commands %}
+            <tr>
+                <th scope="row">{{ queued_command.id }}</th>
+                <td>{{ queued_command.team.name }}</td>
+                <td>{{ queued_command.service.name }}</td>
+                <td>{{ subnet }}{{ queued_command.team_num }}.{{ queued_command.service_ip }}</td>
+                <td>{{ queued_command.root_shell }}</td>
+                <td>{{ queued_command.command }}</td>
+                <td><a class="btn btn-danger" href="/admin/commands/delete?id={{ queued_command.id }}">Delete</a></td>
+            </tr>
+        {% endfor %}
+        </tbody>
+    </table>
+    <form action="/admin/commands/add" method="post">
+        {{ input_box_select(boxes, "Box", "box") }}
+        {{ input_bool_select("Root Shell", "root_shell") }}
+        {{ input("Command", "command", "text") }}
+        <input class="btn btn-primary" type="submit" value="Add">
+    </form>
+{% endblock %}

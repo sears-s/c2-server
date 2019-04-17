@@ -475,6 +475,52 @@ def admin_flagrets_update():
     return redirect(url_for("admin_flagrets"))
 
 
+@app.route("/admin/commands", methods=["GET"])
+def admin_commands():
+    return render_template("commands.html", queued_commands=QueuedCommand.query.all(),
+                           boxes=Box.query.order_by(Box.team_num, Box.service_ip).all(), subnet=half_subnet())
+
+
+@app.route("/admin/commands/add", methods=["POST"])
+def admin_commands_add():
+    # Get form data
+    box = request.form.get("box")
+    root_shell = str_to_bool(request.form.get("root_shell"))
+    command = request.form.get("command")
+
+    # Parse box and add to database
+    if box == "all":
+        for box in Box.query.all():
+            db.session.add(QueuedCommand(box.team_num, box.service_ip, root_shell, command))
+        db.session.commit()
+    else:
+        parts = box.split("-")
+        box = Box.query.get((int(parts[0]), int(parts[1])))
+        db.session.add(QueuedCommand(box.team_num, box.service_ip, root_shell, command))
+        db.session.commit()
+
+    # Flash and redirect
+    flash("Queued command added")
+    log("admin", f"queued command added by {request.remote_addr}")
+    return redirect(url_for("admin_commands"))
+
+
+@app.route("/admin/commands/delete", methods=["GET"])
+def admin_commands_delete():
+    # Get parameters
+    id = int(request.args.get("id"))
+
+    # Delete from database
+    queued_command = QueuedCommand.query.get(id)
+    db.session.delete(queued_command)
+    db.session.commit()
+
+    # Flash and redirect
+    flash("Queued command deleted")
+    log("admin", f"queued command {id} deleted by {request.remote_addr}")
+    return redirect(url_for("admin_commands"))
+
+
 @app.route("/admin/ssh", methods=["GET"])
 def admin_ssh():
     return render_template("ssh.html", usernames=SSHUsername.query.order_by(SSHUsername.username).all(),
@@ -798,7 +844,7 @@ def run_scripts():
     while True:
 
         # Get settings from database
-        subnet = Setting.query.get("subnet")
+        subnet = Setting.query.get("subnet").value
         try:
             interval = int(Setting.query.get("run_scripts_interval").value)
         except:
@@ -828,10 +874,12 @@ def run_scripts():
                     ip = get_ip(subnet, box)
                     log("run_scripts", f"running script {script.path} against {ip}")
                     try:
-                        output = subprocess.check_output(f"python {path} {ip}", shell=True, stderr=subprocess.STDOUT)
+                        output = subprocess.check_output(f"py {path} {ip}", shell=True, stderr=subprocess.STDOUT)
                     except subprocess.CalledProcessError as e:
-                        log("run_scripts", f"script {script.path} against {ip} failed with '{e.output}'")
+                        log("run_scripts",
+                            f"script {script.path} against {ip} failed with '{e.output.decode('utf-8')}'")
                         continue
+                    output = output.decode("utf-8")
                     log("run_scripts", f"script {script.path} against {ip} received '{output}'")
 
                     # Extract the flags
@@ -993,7 +1041,7 @@ def add_setting(name, default, description):
 
 def extract_flags(data, box, source):
     # Find and add the new flags to the database
-    regex = re.compile(Setting.query.get("flag_regex"))
+    regex = re.compile(Setting.query.get("flag_regex").value)
     flags = re.findall(regex, data)
     new_flags = []
     for flag in flags:

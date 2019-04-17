@@ -36,7 +36,7 @@
     <form action="/admin/scripts/add" method="post">
         {{ input_service_select(services, "Service", "service_ip") }}
         {{ input("Path", "path", "text") }}
-        {{ input_bool_select("Target Pwned", "targed_pwned") }}
+        {{ input_bool_select("Target Pwned", "target_pwned") }}
         <input class="btn btn-primary" type="submit" value="Add">
     </form>
 {% endblock %}
