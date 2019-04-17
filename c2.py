@@ -358,7 +358,7 @@ def admin_flags_submit():
 @app.route("/admin/flags/mark", methods=["GET"])
 def admin_flags_mark():
     # Get parameters
-    flag = request.args.get("id")
+    flag = request.args.get("flag")
 
     # Update in database
     flag = Flag.query.get(flag)
