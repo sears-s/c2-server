@@ -11,6 +11,7 @@
             <th scope="col">Source</th>
             <th scope="col">Found</th>
             <th scope="col">Submitted</th>
+            <th scope="col">Actions</th>
         </tr>
         </thead>
         <tbody>
@@ -23,8 +24,10 @@
                 <td>{{ flag.source }}</td>
                 <td>{{ flag.found }}</td>
                 <td>{{ flag.submitted }}</td>
+                <td><a class="btn btn-primary" href="/admin/flags/mark?id={{ flag.id }}">Mark Submitted</a></td>
             </tr>
         {% endfor %}
         </tbody>
     </table>
+    <a class="btn btn-primary" href="/admin/flags/submit">Submit un-submitted flags</a>
 {% endblock %}

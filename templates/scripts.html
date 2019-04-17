@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% set active_page = "Scripts" %}
 {% block content %}
-    <p>Scripts should be Python 2.7 and located in the {{ scripts_dir }} directory. Flags will be extracted from
-        stdout.</p>
+    <p>Scripts should located in the {{ scripts_dir }} directory. Scripts are run with ./, so if it is Python, make sure
+        to have '#!/usr/bin/env python' at the top. Flags will be extracted from STDOUT.</p>
     <table class="table table-hover table-bordered">
         <thead class="thead-light">
         <tr>
