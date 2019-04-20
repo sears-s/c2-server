@@ -142,11 +142,6 @@ def admin_home():
                            flags_submitted=Flag.query.filter(Flag.submitted.isnot(None)).count())
 
 
-@app.route("/admin/map", methods=["GET"])
-def admin_map():
-    return render_template("map.html")
-
-
 @app.route("/admin/threads", methods=["GET"])
 def admin_threads():
     return render_template("threads.html", threads=THREADS)
