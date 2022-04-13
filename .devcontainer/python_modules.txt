@@ -10,4 +10,5 @@ flask
 flask-sqlalchemy
 isort
 paramiko
+pymetasploit3
 requests

