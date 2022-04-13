@@ -1,0 +1,4 @@
+git
+gnupg
+python3-dev
+py3-pip

@@ -15,12 +15,13 @@ from threading import Thread
 import paramiko
 import requests
 from flask import Flask, request, render_template, flash, redirect, url_for
-from flask_bootstrap import Bootstrap
+from flask_bootstrap import Bootstrap4
 from flask_sqlalchemy import SQLAlchemy
 
 # Constants
 PORT = 80
 DEBUG = False
+MSF_DIR = "/usr/src/metasploit-framework/"
 MSFRPC_PW = "tHVdf97UqDZxmJuh"
 TEMPLATE_DIR = "./templates/"
 SCRIPTS_DIR = "./scripts/"
@@ -57,7 +58,7 @@ app.config["SQLALCHEMY_DATABASE_URI"] = "sqlite:///" + DB_FILE
 app.config["SQLALCHEMY_TRACK_MODIFICATIONS"] = False
 app.secret_key = "CyberChef2"
 db = SQLAlchemy(app)
-Bootstrap(app)
+Bootstrap4(app)
 
 
 def main():
@@ -97,7 +98,7 @@ def main():
 
     # Run MSFRPC
     subprocess.call("pkill msfrpcd", shell=True)
-    subprocess.call(f"msfrpcd -P {MSFRPC_PW} -S -a 127.0.0.1", shell=True)
+    subprocess.call(f"{os.path.join(MSF_DIR, 'msfrpcd')} -P {MSFRPC_PW} -S -a 127.0.0.1", shell=True)
 
     # Start threads
     THREADS.append(Thread(target=status, name="status"))

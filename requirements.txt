@@ -1,5 +1,0 @@
-flask
-bootstrap-flask
-flask-sqlalchemy
-paramiko
-requests
